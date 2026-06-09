@@ -5,7 +5,7 @@ import envPaths from "env-paths";
 import type { ConfigFile, LegacyProfileV1, Profile, ProfileSlot } from "./types";
 import { newSlotId } from "./profiles";
 
-const paths = envPaths("savesmanager", { suffix: "" });
+const paths = envPaths("pocket-quartermaster", { suffix: "" });
 export const CONFIG_DIR = paths.config;
 export const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 export const BACKUP_DIR = join(paths.data, "backups");

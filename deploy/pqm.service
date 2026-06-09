@@ -1,5 +1,5 @@
 [Unit]
-Description=SavesManager (Nuxt SSR)
+Description=Pocket Quartermaster (Nuxt SSR)
 After=network-online.target
 Wants=network-online.target
 
@@ -7,10 +7,10 @@ Wants=network-online.target
 Type=simple
 User=pi
 Group=pi
-WorkingDirectory=/opt/savesmanager
-EnvironmentFile=-/opt/savesmanager/savesmanager.env
+WorkingDirectory=/opt/pqm
+EnvironmentFile=-/opt/pqm/pqm.env
 Environment=NODE_ENV=production
-ExecStart=/usr/bin/node /opt/savesmanager/.output/server/index.mjs
+ExecStart=/usr/bin/node /opt/pqm/.output/server/index.mjs
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

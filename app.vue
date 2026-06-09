@@ -19,7 +19,7 @@ const showBack = computed(() => route.path !== "/");
         <span class="sr-only">Back</span>
       </button>
       <NuxtLink to="/" class="flex-1 text-lg font-bold tracking-tight">
-        SavesManager
+        Pocket Quartermaster
       </NuxtLink>
       <NuxtLink
         to="/activity"

@@ -3,7 +3,7 @@ import { mkdir, readdir, rename, stat, unlink, writeFile } from "node:fs/promise
 import { extname, join } from "node:path";
 import envPaths from "env-paths";
 
-const paths = envPaths("savesmanager", { suffix: "" });
+const paths = envPaths("pocket-quartermaster", { suffix: "" });
 export const THUMBNAILS_DIR = join(paths.config, "thumbnails");
 export const THUMBNAIL_INDEX_DIR = join(paths.config, "thumbnails-index");
 

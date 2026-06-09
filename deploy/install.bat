@@ -20,7 +20,7 @@ echo.
 if not exist "%PS_INSTALL%" (
     echo Bootstrapping install.ps1 from latest release...
     powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
-        "Invoke-WebRequest -Uri 'https://github.com/dylanclaywell/saves-manager/releases/latest/download/install.ps1' -OutFile '%PS_INSTALL%' -UseBasicParsing"
+        "Invoke-WebRequest -Uri 'https://github.com/dylanclaywell/pocket-quartermaster/releases/latest/download/install.ps1' -OutFile '%PS_INSTALL%' -UseBasicParsing"
     if errorlevel 1 (
         echo Failed to download install.ps1. Check your internet connection.
         pause

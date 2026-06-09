@@ -1,10 +1,10 @@
-# Starts SavesManager from the .output folder next to this script.
+# Starts Pocket Quartermaster from the .output folder next to this script.
 # Run via run.bat (recommended) or: powershell.exe -ExecutionPolicy Bypass -File run.ps1
 $ErrorActionPreference = "Stop"
 
 $Root  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Entry = Join-Path $Root ".output\server\index.mjs"
-$EnvFile = Join-Path $Root "savesmanager.env"
+$EnvFile = Join-Path $Root "pqm.env"
 
 if (-not (Test-Path $Entry)) {
     Write-Host "Build not found at $Entry" -ForegroundColor Red
@@ -18,7 +18,7 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-# Defaults, overridable via savesmanager.env (KEY=VALUE lines, # comments allowed)
+# Defaults, overridable via pqm.env (KEY=VALUE lines, # comments allowed)
 $env:NODE_ENV = "production"
 $env:HOST     = "0.0.0.0"
 $env:PORT     = "3000"
@@ -35,7 +35,7 @@ if (Test-Path $EnvFile) {
     }
 }
 
-Write-Host "Starting SavesManager on http://localhost:$($env:PORT)" -ForegroundColor Green
+Write-Host "Starting Pocket Quartermaster on http://localhost:$($env:PORT)" -ForegroundColor Green
 Write-Host "Bound to $($env:HOST):$($env:PORT). Press Ctrl+C to stop." -ForegroundColor DarkGray
 Write-Host ""
 

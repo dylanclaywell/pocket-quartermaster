@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
   app: {
     head: {
-      title: "SavesManager",
+      title: "Pocket Quartermaster",
       viewport: "width=device-width, initial-scale=1, viewport-fit=cover",
       meta: [
         { name: "theme-color", content: "#0f172a" },

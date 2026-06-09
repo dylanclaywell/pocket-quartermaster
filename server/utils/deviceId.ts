@@ -8,7 +8,7 @@ interface MarkerFile {
   id: string;
   nickname: string;
   registeredAt: string;
-  /** Soft-pin to the savesmanager schema for forward compat */
+  /** Soft-pin to the pocket-quartermaster schema for forward compat */
   schema: 1;
 }
 

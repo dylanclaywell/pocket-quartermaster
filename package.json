@@ -1,8 +1,8 @@
 {
-  "name": "savesmanager",
+  "name": "pocket-quartermaster",
   "version": "0.3.0",
   "private": true,
-  "description": "Web UI for syncing retro game save files between mounted devices (Nuxt + Tailwind, mobile-friendly)",
+  "description": "Self-hosted retro game manager: sync saves, curate ROMs, and dole supplies to your handhelds. Nuxt + Tailwind, mobile-friendly.",
   "type": "module",
   "scripts": {
     "dev": "nuxt dev --host 0.0.0.0",

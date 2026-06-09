@@ -1,13 +1,13 @@
-# Downloads the latest SavesManager build from GitHub Releases and swaps it
-# in next to this script. Run via update.bat (recommended).
+# Downloads the latest Pocket Quartermaster build from GitHub Releases and
+# swaps it in next to this script. Run via update.bat (recommended).
 $ErrorActionPreference = "Stop"
 
-$Repo  = if ($env:SAVESMANAGER_REPO) { $env:SAVESMANAGER_REPO } else { "dylanclaywell/saves-manager" }
-$Asset = "savesmanager-output.zip"
+$Repo  = if ($env:PQM_REPO) { $env:PQM_REPO } else { "dylanclaywell/pocket-quartermaster" }
+$Asset = "pocket-quartermaster-output.zip"
 $Url   = "https://github.com/$Repo/releases/latest/download/$Asset"
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Tmp  = Join-Path $env:TEMP "savesmanager-update-$([guid]::NewGuid().ToString('N'))"
+$Tmp  = Join-Path $env:TEMP "pqm-update-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $Tmp -Force | Out-Null
 
 try {

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Pulls the latest SavesManager release from GitHub and swaps it in.
+# Pulls the latest Pocket Quartermaster release from GitHub and swaps it in.
 # Run on the Pi: sudo ./update.sh
 set -euo pipefail
 
-REPO="${SAVESMANAGER_REPO:-dylanclaywell/saves-manager}"
-INSTALL_DIR="${SAVESMANAGER_DIR:-/opt/savesmanager}"
-SERVICE="${SAVESMANAGER_SERVICE:-savesmanager}"
-ASSET="savesmanager-output.zip"
+REPO="${PQM_REPO:-dylanclaywell/pocket-quartermaster}"
+INSTALL_DIR="${PQM_DIR:-/opt/pqm}"
+SERVICE="${PQM_SERVICE:-pqm}"
+ASSET="pocket-quartermaster-output.zip"
 URL="https://github.com/${REPO}/releases/latest/download/${ASSET}"
 
 if [[ $EUID -ne 0 ]]; then

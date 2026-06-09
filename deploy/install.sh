@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# First-time SavesManager install on a Raspberry Pi (or any Debian-ish host).
+# First-time Pocket Quartermaster install on a Raspberry Pi (or any Debian-ish host).
 # Run on the Pi: sudo ./install.sh
 set -euo pipefail
 
-REPO="${SAVESMANAGER_REPO:-dylanclaywell/saves-manager}"
-INSTALL_DIR="${SAVESMANAGER_DIR:-/opt/savesmanager}"
-SERVICE="${SAVESMANAGER_SERVICE:-savesmanager}"
-RUN_USER="${SAVESMANAGER_USER:-pi}"
+REPO="${PQM_REPO:-dylanclaywell/pocket-quartermaster}"
+INSTALL_DIR="${PQM_DIR:-/opt/pqm}"
+SERVICE="${PQM_SERVICE:-pqm}"
+RUN_USER="${PQM_USER:-pi}"
 
 if [[ $EUID -ne 0 ]]; then
   echo "Re-running with sudo..."
@@ -15,7 +15,7 @@ fi
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Error: Node.js is not installed (or not on PATH)." >&2
-  echo "SavesManager requires Node.js 22 or newer." >&2
+  echo "Pocket Quartermaster requires Node.js 22 or newer." >&2
   echo "Install it from your distro's package manager or https://nodejs.org/," >&2
   echo "then re-run this installer." >&2
   echo >&2
@@ -38,28 +38,28 @@ chown -R "$RUN_USER":"$RUN_USER" "$INSTALL_DIR"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd || echo "")"
 UPDATE_SRC="$SCRIPT_DIR/update.sh"
-UNIT_SRC="$SCRIPT_DIR/savesmanager.service"
-ENV_SRC="$SCRIPT_DIR/savesmanager.env.example"
+UNIT_SRC="$SCRIPT_DIR/pqm.service"
+ENV_SRC="$SCRIPT_DIR/pqm.env.example"
 
 if [[ ! -f "$UPDATE_SRC" || ! -f "$UNIT_SRC" || ! -f "$ENV_SRC" ]]; then
-  echo "==> Bootstrap: fetching update.sh, savesmanager.service, and savesmanager.env.example from latest release"
+  echo "==> Bootstrap: fetching update.sh, pqm.service, and pqm.env.example from latest release"
   BOOT_TMP=$(mktemp -d)
   trap 'rm -rf "$BOOT_TMP"' EXIT
   curl -fsSL -o "$BOOT_TMP/update.sh" \
     "https://github.com/${REPO}/releases/latest/download/update.sh"
-  curl -fsSL -o "$BOOT_TMP/savesmanager.service" \
-    "https://github.com/${REPO}/releases/latest/download/savesmanager.service"
-  curl -fsSL -o "$BOOT_TMP/savesmanager.env.example" \
-    "https://github.com/${REPO}/releases/latest/download/savesmanager.env.example"
+  curl -fsSL -o "$BOOT_TMP/pqm.service" \
+    "https://github.com/${REPO}/releases/latest/download/pqm.service"
+  curl -fsSL -o "$BOOT_TMP/pqm.env.example" \
+    "https://github.com/${REPO}/releases/latest/download/pqm.env.example"
   UPDATE_SRC="$BOOT_TMP/update.sh"
-  UNIT_SRC="$BOOT_TMP/savesmanager.service"
-  ENV_SRC="$BOOT_TMP/savesmanager.env.example"
+  UNIT_SRC="$BOOT_TMP/pqm.service"
+  ENV_SRC="$BOOT_TMP/pqm.env.example"
 fi
 
 echo "==> Installing update.sh to $INSTALL_DIR/update.sh"
 install -m 0755 -o "$RUN_USER" -g "$RUN_USER" "$UPDATE_SRC" "$INSTALL_DIR/update.sh"
 
-ENV_DST="$INSTALL_DIR/savesmanager.env"
+ENV_DST="$INSTALL_DIR/pqm.env"
 if [[ -f "$ENV_DST" ]]; then
   echo "==> Keeping existing $ENV_DST (not overwriting)"
   if [[ -n "${HOST:-}" || -n "${PORT:-}" ]]; then
@@ -86,6 +86,7 @@ sed \
   -e "s|^User=.*|User=${RUN_USER}|" \
   -e "s|^Group=.*|Group=${RUN_USER}|" \
   -e "s|^WorkingDirectory=.*|WorkingDirectory=${INSTALL_DIR}|" \
+  -e "s|^EnvironmentFile=.*|EnvironmentFile=-${INSTALL_DIR}/pqm.env|" \
   -e "s|^ExecStart=.*|ExecStart=${NODE_BIN} ${INSTALL_DIR}/.output/server/index.mjs|" \
   "$UNIT_SRC" > "$UNIT_DST"
 
@@ -93,9 +94,9 @@ systemctl daemon-reload
 systemctl enable "$SERVICE"
 
 echo "==> Downloading first build via update.sh"
-SAVESMANAGER_REPO="$REPO" \
-SAVESMANAGER_DIR="$INSTALL_DIR" \
-SAVESMANAGER_SERVICE="$SERVICE" \
+PQM_REPO="$REPO" \
+PQM_DIR="$INSTALL_DIR" \
+PQM_SERVICE="$SERVICE" \
   "$INSTALL_DIR/update.sh"
 
 echo
@@ -103,4 +104,4 @@ echo "Install complete."
 echo "Service:   systemctl status $SERVICE"
 echo "Logs:      journalctl -u $SERVICE -f"
 echo "Update:    sudo $INSTALL_DIR/update.sh"
-echo "Config:    $INSTALL_DIR/savesmanager.env  (restart service after editing)"
+echo "Config:    $INSTALL_DIR/pqm.env  (restart service after editing)"

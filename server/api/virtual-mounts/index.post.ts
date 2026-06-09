@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 403,
       statusMessage:
-        "Adding virtual mounts is disabled in production. Set SAVESMANAGER_ALLOW_VIRTUAL_MOUNTS=1 to override.",
+        "Adding virtual mounts is disabled in production. Set PQM_ALLOW_VIRTUAL_MOUNTS=1 to override.",
     });
   }
   const body = await readBody<{ path?: string; label?: string }>(event);

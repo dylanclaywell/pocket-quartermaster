@@ -87,8 +87,8 @@ async function refresh() {
 
 onMounted(refresh);
 
-// Mounts that are physically present but have no SavesManager marker — the
-// user needs to register these before they can be used in profiles/activity.
+// Mounts that are physically present but have no Pocket Quartermaster marker —
+// the user needs to register these before they can be used in profiles/activity.
 const unregisteredMounts = computed(() =>
   mounts.value.filter((m) => !m.marker),
 );
@@ -211,7 +211,7 @@ async function applyVmActivityDir(v: VirtualMount, value: string | null) {
       <h2 class="font-semibold">New mounts</h2>
       <p class="text-xs text-fg-dim">
         Plugged-in volumes that aren't registered yet. Give one a nickname to start
-        using it with SavesManager.
+        using it with Pocket Quartermaster.
       </p>
       <ul class="flex flex-col gap-2">
         <li
@@ -314,7 +314,7 @@ async function applyVmActivityDir(v: VirtualMount, value: string | null) {
         hardware.
         <span v-if="configInfo && !configInfo.virtualMountManagementEnabled">
           Adding new mounts is disabled in production — run in dev or set
-          <span class="font-mono">SAVESMANAGER_ALLOW_VIRTUAL_MOUNTS=1</span> to enable.
+          <span class="font-mono">PQM_ALLOW_VIRTUAL_MOUNTS=1</span> to enable.
         </span>
       </p>
 

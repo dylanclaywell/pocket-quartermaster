@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
   try {
     response = await fetch(parsed.toString(), {
       redirect: "follow",
-      headers: { "User-Agent": "SavesManager-Thumbnail/1.0" },
+      headers: { "User-Agent": "PocketQuartermaster-Thumbnail/1.0" },
     });
   } catch (err) {
     throw createError({

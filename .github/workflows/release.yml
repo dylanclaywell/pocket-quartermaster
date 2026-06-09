@@ -26,13 +26,13 @@ jobs:
         run: npm run build
 
       - name: Package .output
-        run: zip -r savesmanager-output.zip .output
+        run: zip -r pocket-quartermaster-output.zip .output
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: savesmanager-build
-          path: savesmanager-output.zip
+          name: pocket-quartermaster-build
+          path: pocket-quartermaster-output.zip
           retention-days: 7
           if-no-files-found: error
 
@@ -59,14 +59,14 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: savesmanager-build
+          name: pocket-quartermaster-build
 
       - name: Stage deploy assets
         run: |
           mkdir -p release-assets
-          cp savesmanager-output.zip release-assets/
-          cp deploy/savesmanager.service release-assets/
-          cp deploy/savesmanager.env.example release-assets/
+          cp pocket-quartermaster-output.zip release-assets/
+          cp deploy/pqm.service release-assets/
+          cp deploy/pqm.env.example release-assets/
           cp deploy/install.sh deploy/update.sh release-assets/
           cp deploy/install.ps1 deploy/install.bat release-assets/
           cp deploy/update.ps1 deploy/update.bat release-assets/

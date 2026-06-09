@@ -89,4 +89,4 @@ export interface ConfigFile {
   virtualMounts: VirtualMount[];
 }
 
-export const MARKER_FILENAME = ".savesmanager-device-id.json";
+export const MARKER_FILENAME = ".pqm-device-id.json";

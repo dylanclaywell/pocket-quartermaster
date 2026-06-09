@@ -64,7 +64,7 @@ async function fetchRepoMeta(repo: string): Promise<{ defaultBranch: string }> {
   const res = await fetch(`https://api.github.com/repos/libretro-thumbnails/${repo}`, {
     headers: {
       Accept: "application/vnd.github+json",
-      "User-Agent": "SavesManager-Thumbnail/1.0",
+      "User-Agent": "PocketQuartermaster-Thumbnail/1.0",
     },
   });
   if (!res.ok) {
@@ -80,7 +80,7 @@ async function fetchTree(repo: string, branch: string): Promise<GhTreeResponse> 
     {
       headers: {
         Accept: "application/vnd.github+json",
-        "User-Agent": "SavesManager-Thumbnail/1.0",
+        "User-Agent": "PocketQuartermaster-Thumbnail/1.0",
       },
     },
   );

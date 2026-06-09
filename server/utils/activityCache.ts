@@ -9,7 +9,7 @@ import {
   type ActivityEntry,
 } from "./retroarchActivity";
 
-const paths = envPaths("savesmanager", { suffix: "" });
+const paths = envPaths("pocket-quartermaster", { suffix: "" });
 export const ACTIVITY_CACHE_DIR = join(paths.config, "activity-cache");
 
 export interface DeviceActivityCache {
