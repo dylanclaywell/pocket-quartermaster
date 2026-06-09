@@ -1,10 +1,12 @@
-import { basename } from "node:path";
 import { loadConfig } from "../../../utils/storage";
 import { findProfile, findDevice, profileIsReady } from "../../../utils/profiles";
 import { listAllMounts } from "../../../utils/devices";
 import { readMarker } from "../../../utils/deviceId";
-import { resolveSlot } from "../../../utils/sync";
-import type { SlotKey } from "../../../utils/types";
+import { resolveSlot, type ResolvedSlot } from "../../../utils/sync";
+
+interface ResolvedSlotResponse extends Omit<ResolvedSlot, "absolutePath" | "mountPath"> {
+  mounted: boolean;
+}
 
 export default defineEventHandler(async (event) => {
   const name = getRouterParam(event, "name");
@@ -21,46 +23,34 @@ export default defineEventHandler(async (event) => {
     if (marker) mountByDeviceId.set(marker.id, m.mountPath);
   }
 
-  const ready = profileIsReady(profile);
-
-  async function resolveOne(slotKey: SlotKey) {
-    const slot = profile[slotKey];
-    if (!slot) return null;
+  const slots: ResolvedSlotResponse[] = [];
+  for (const slot of profile.slots) {
     const device = findDevice(cfg, slot.deviceId) ?? null;
     const mountPath = mountByDeviceId.get(slot.deviceId);
     if (!mountPath || !device) {
-      return {
-        slotKey,
+      slots.push({
+        slotId: slot.id,
         deviceId: slot.deviceId,
         deviceNickname: device?.nickname ?? "(unknown device)",
-        mounted: false,
         fileRelPath: slot.fileRelPath,
         directoryMode: slot.isDirectory === true,
         exists: false,
-      };
+        mounted: false,
+        lastSyncedAt: slot.lastSyncedAt,
+      });
+      continue;
     }
-    const resolved = await resolveSlot(profile, slotKey, mountPath, device.nickname);
-    return { ...resolved, mounted: true };
-  }
-
-  const slotA = await resolveOne("slotA");
-  const slotB = await resolveOne("slotB");
-
-  // If one side is a directory slot and the other side has a real file,
-  // the filename that will be created on the directory side is the basename
-  // of the file side. Pre-compute it server-side so the UI can quote it.
-  function pendingFor(self: typeof slotA, other: typeof slotA): string | null {
-    if (!self || !other) return null;
-    if (!self.directoryMode) return null;
-    if (other.directoryMode) return null;
-    if (!other.fileRelPath) return null;
-    return basename(other.fileRelPath);
+    const resolved = await resolveSlot(slot, mountPath, device.nickname);
+    // Strip absolute path / mount path — the client doesn't need them.
+    const { absolutePath: _abs, mountPath: _mp, ...rest } = resolved;
+    void _abs;
+    void _mp;
+    slots.push({ ...rest, mounted: true });
   }
 
   return {
     name: profile.name,
-    ready,
-    slotA: slotA ? { ...slotA, pendingFileName: pendingFor(slotA, slotB) } : null,
-    slotB: slotB ? { ...slotB, pendingFileName: pendingFor(slotB, slotA) } : null,
+    ready: profileIsReady(profile),
+    slots,
   };
 });

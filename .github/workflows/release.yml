@@ -16,7 +16,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -66,6 +66,7 @@ jobs:
           mkdir -p release-assets
           cp savesmanager-output.zip release-assets/
           cp deploy/savesmanager.service release-assets/
+          cp deploy/savesmanager.env.example release-assets/
           cp deploy/install.sh deploy/update.sh release-assets/
           cp deploy/install.ps1 deploy/install.bat release-assets/
           cp deploy/update.ps1 deploy/update.bat release-assets/
@@ -75,3 +76,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ needs.release-please.outputs.tag_name }}" release-assets/* --clobber
+
+      - name: Prepend install instructions to release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          gh release view "$TAG" --json body --jq .body > current-body.md
+          {
+            cat deploy/release-notes-header.md
+            printf '\n'
+            cat current-body.md
+          } > combined-notes.md
+          gh release edit "$TAG" --notes-file combined-notes.md

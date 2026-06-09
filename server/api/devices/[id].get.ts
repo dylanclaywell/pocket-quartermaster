@@ -26,19 +26,20 @@ export default defineEventHandler(async (event) => {
   // Every profile slot that references this device — drives the "Save slots" section.
   const slots: {
     profileName: string;
-    slotKey: "slotA" | "slotB";
+    slotId: string;
     fileRelPath: string;
     isDirectory?: boolean;
+    lastSyncedAt?: string;
   }[] = [];
   for (const p of cfg.profiles) {
-    for (const key of ["slotA", "slotB"] as const) {
-      const slot = p[key];
-      if (slot && slot.deviceId === id) {
+    for (const slot of p.slots) {
+      if (slot.deviceId === id) {
         slots.push({
           profileName: p.name,
-          slotKey: key,
+          slotId: slot.id,
           fileRelPath: slot.fileRelPath,
           isDirectory: slot.isDirectory,
+          lastSyncedAt: slot.lastSyncedAt,
         });
       }
     }

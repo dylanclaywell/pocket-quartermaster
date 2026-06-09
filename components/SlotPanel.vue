@@ -1,30 +1,30 @@
 <script setup lang="ts">
 interface SlotResolved {
-  slotKey: "slotA" | "slotB";
+  slotId: string;
   deviceNickname: string;
   fileRelPath: string;
   mounted: boolean;
   exists: boolean;
   directoryMode?: boolean;
   pendingFileName?: string | null;
+  lastSyncedAt?: string;
 }
 
 const props = defineProps<{
-  slotLetter: "A" | "B";
   encodedName: string;
-  fileRelPath?: string;
+  index: number;
+  resolved: SlotResolved;
   subtitle: string;
-  resolved: SlotResolved | null;
 }>();
 
-const slotKey = computed(() => (props.slotLetter === "A" ? "slotA" : "slotB"));
+defineEmits<{ remove: [] }>();
+
 const configureHref = computed(
-  () => `/profiles/${props.encodedName}/slot/${slotKey.value}`,
+  () => `/profiles/${props.encodedName}/slot/${props.resolved.slotId}`,
 );
 
 const statusPill = computed(() => {
   const r = props.resolved;
-  if (!r) return null;
   if (!r.mounted) {
     return {
       text: "absent",
@@ -56,37 +56,33 @@ const statusPill = computed(() => {
       <div class="flex items-baseline gap-2">
         <span
           class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-surface-2 text-sm font-bold"
-          >{{ slotLetter }}</span
+          >{{ index + 1 }}</span
         >
-        <p class="font-semibold">
-          {{ resolved ? resolved.deviceNickname : "Slot " + slotLetter }}
-        </p>
+        <p class="font-semibold">{{ resolved.deviceNickname }}</p>
       </div>
-      <span v-if="statusPill" class="pill" :class="statusPill.cls">
-        {{ statusPill.text }}
-      </span>
-      <span v-else class="pill bg-surface-2 text-fg-dim">empty</span>
+      <span class="pill" :class="statusPill.cls">{{ statusPill.text }}</span>
     </div>
 
-    <p v-if="fileRelPath" class="break-all text-sm text-fg-dim">
-      <span v-if="resolved?.directoryMode" class="mr-1">📂</span>
-      /{{ fileRelPath }}{{ resolved?.directoryMode ? "/" : "" }}
+    <p v-if="resolved.fileRelPath" class="break-all text-sm text-fg-dim">
+      <span v-if="resolved.directoryMode" class="mr-1">📂</span>
+      /{{ resolved.fileRelPath }}{{ resolved.directoryMode ? "/" : "" }}
     </p>
 
     <p
-      v-if="resolved?.directoryMode && resolved.mounted && resolved.pendingFileName"
+      v-if="resolved.directoryMode && resolved.mounted && resolved.pendingFileName"
       class="text-sm text-warn"
     >
-      File <span class="font-semibold">{{ resolved.pendingFileName }}</span>
-      does not exist on
-      <span class="font-semibold">{{ resolved.deviceNickname }}</span> — will be
-      created as <span class="font-mono">{{ resolved.pendingFileName }}</span> on transfer.
+      Will be created as
+      <span class="font-mono">{{ resolved.pendingFileName }}</span> on transfer.
     </p>
 
     <p class="text-xs text-fg-dim">{{ subtitle }}</p>
 
-    <NuxtLink :to="configureHref" class="btn-secondary self-start">
-      {{ resolved ? "Replace" : "Configure" }}
-    </NuxtLink>
+    <div class="flex flex-wrap gap-2">
+      <NuxtLink :to="configureHref" class="btn-secondary">Replace</NuxtLink>
+      <button class="btn-ghost text-danger text-sm" @click="$emit('remove')">
+        Remove
+      </button>
+    </div>
   </div>
 </template>

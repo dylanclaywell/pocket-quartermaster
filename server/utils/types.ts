@@ -27,25 +27,43 @@ export interface DeviceIdentity {
   retroarchActivityDir?: string;
 }
 
-/** One of the two device slots inside a profile. */
+/** A single device slot inside a profile. A profile holds N of these and the
+    user picks source + destination explicitly at transfer time. */
 export interface ProfileSlot {
+  /** Stable id for the slot within its profile, used in URLs and the transfer
+      payload. Does not need to be globally unique. */
+  id: string;
   /** Which device is bound to this slot, by stable id */
   deviceId: string;
   /** Path of the save file (or destination directory when isDirectory is true),
       relative to the device root, using forward slashes */
   fileRelPath: string;
   /** When true, fileRelPath points at a directory and the actual filename is
-      derived from the *other* slot at transfer time. Used to seed a device
+      derived from the *source* slot at transfer time. Used to seed a device
       that doesn't have the save yet. */
   isDirectory?: boolean;
+  /** ISO timestamp of the last transfer that touched this slot (either as
+      source or destination). Surfaced in the UI so the user can tell at a
+      glance how stale each device is. */
+  lastSyncedAt?: string;
 }
 
 export interface Profile {
   name: string;
   /** Free-form notes (e.g. "Pokemon Emerald — RG35XX <-> RetroArch on PC") */
   notes?: string;
-  slotA?: ProfileSlot;
-  slotB?: ProfileSlot;
+  slots: ProfileSlot[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Legacy shape from version 1 of the config file. Read-only — loadConfig
+    migrates these into the slots[] form. */
+export interface LegacyProfileV1 {
+  name: string;
+  notes?: string;
+  slotA?: { deviceId: string; fileRelPath: string; isDirectory?: boolean };
+  slotB?: { deviceId: string; fileRelPath: string; isDirectory?: boolean };
   createdAt: string;
   updatedAt: string;
 }
@@ -65,12 +83,10 @@ export interface VirtualMount {
 }
 
 export interface ConfigFile {
-  version: 1;
+  version: 2;
   devices: DeviceIdentity[];
   profiles: Profile[];
   virtualMounts: VirtualMount[];
 }
-
-export type SlotKey = "slotA" | "slotB";
 
 export const MARKER_FILENAME = ".savesmanager-device-id.json";

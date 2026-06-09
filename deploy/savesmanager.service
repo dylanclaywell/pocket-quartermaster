@@ -8,10 +8,9 @@ Type=simple
 User=pi
 Group=pi
 WorkingDirectory=/opt/savesmanager
-ExecStart=/usr/bin/node /opt/savesmanager/.output/server/index.mjs
+EnvironmentFile=-/opt/savesmanager/savesmanager.env
 Environment=NODE_ENV=production
-Environment=HOST=0.0.0.0
-Environment=PORT=3000
+ExecStart=/usr/bin/node /opt/savesmanager/.output/server/index.mjs
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

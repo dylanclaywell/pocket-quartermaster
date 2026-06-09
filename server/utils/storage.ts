@@ -2,7 +2,8 @@ import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import envPaths from "env-paths";
-import type { ConfigFile } from "./types";
+import type { ConfigFile, LegacyProfileV1, Profile, ProfileSlot } from "./types";
+import { newSlotId } from "./profiles";
 
 const paths = envPaths("savesmanager", { suffix: "" });
 export const CONFIG_DIR = paths.config;
@@ -10,7 +11,7 @@ export const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 export const BACKUP_DIR = join(paths.data, "backups");
 
 const EMPTY_CONFIG: ConfigFile = {
-  version: 1,
+  version: 2,
   devices: [],
   profiles: [],
   virtualMounts: [],
@@ -21,13 +22,58 @@ export async function loadConfig(): Promise<ConfigFile> {
     return structuredClone(EMPTY_CONFIG);
   }
   const raw = await readFile(CONFIG_PATH, "utf8");
-  const parsed = JSON.parse(raw) as ConfigFile;
-  // Defensive: fill in missing arrays if the file is from an older shape
+  const parsed = JSON.parse(raw) as Partial<ConfigFile> & {
+    profiles?: unknown[];
+    version?: number;
+  };
   parsed.devices ??= [];
   parsed.profiles ??= [];
   parsed.virtualMounts ??= [];
-  parsed.version ??= 1;
-  return parsed;
+  let migrated = false;
+  parsed.profiles = (parsed.profiles as (Profile | LegacyProfileV1)[]).map((p) => {
+    if (Array.isArray((p as Profile).slots)) return p as Profile;
+    migrated = true;
+    return migrateProfile(p as LegacyProfileV1);
+  });
+  if (parsed.version !== 2) {
+    parsed.version = 2;
+    migrated = migrated || true;
+  }
+  const cfg = parsed as ConfigFile;
+  // Persist the migration so slot IDs are stable across requests. Otherwise
+  // every call would generate fresh UUIDs and POSTs that reference an id from
+  // a prior GET would 404.
+  if (migrated) {
+    await saveConfig(cfg);
+  }
+  return cfg;
+}
+
+function migrateProfile(legacy: LegacyProfileV1): Profile {
+  const slots: ProfileSlot[] = [];
+  if (legacy.slotA) {
+    slots.push({
+      id: newSlotId(),
+      deviceId: legacy.slotA.deviceId,
+      fileRelPath: legacy.slotA.fileRelPath,
+      ...(legacy.slotA.isDirectory ? { isDirectory: true } : {}),
+    });
+  }
+  if (legacy.slotB) {
+    slots.push({
+      id: newSlotId(),
+      deviceId: legacy.slotB.deviceId,
+      fileRelPath: legacy.slotB.fileRelPath,
+      ...(legacy.slotB.isDirectory ? { isDirectory: true } : {}),
+    });
+  }
+  return {
+    name: legacy.name,
+    notes: legacy.notes,
+    slots,
+    createdAt: legacy.createdAt,
+    updatedAt: legacy.updatedAt,
+  };
 }
 
 export async function saveConfig(cfg: ConfigFile): Promise<void> {

@@ -3,8 +3,7 @@ interface ProfileSummary {
   name: string;
   notes?: string;
   ready: boolean;
-  slotA?: { deviceId: string; fileRelPath: string };
-  slotB?: { deviceId: string; fileRelPath: string };
+  slots: { id: string; deviceId: string; fileRelPath: string }[];
   updatedAt: string;
 }
 interface KnownDevice {
@@ -18,9 +17,13 @@ const { data, refresh, pending } = await useFetch<{ profiles: ProfileSummary[]; 
 const profiles = computed(() => data.value?.profiles ?? []);
 const devices = computed(() => data.value?.devices ?? []);
 
-function deviceName(id: string | undefined): string {
-  if (!id) return "(empty)";
+function deviceName(id: string): string {
   return devices.value.find((d) => d.id === id)?.nickname ?? "(unknown)";
+}
+
+function profileDevicesSummary(p: ProfileSummary): string {
+  if (p.slots.length === 0) return "(no devices)";
+  return p.slots.map((s) => deviceName(s.deviceId)).join(" ⇄ ");
 }
 </script>
 
@@ -38,7 +41,7 @@ function deviceName(id: string | undefined): string {
 
       <div v-else-if="profiles.length === 0" class="card text-center">
         <p class="mb-3 text-fg-dim">
-          No profiles yet. Create one to start syncing a save between two devices.
+          No profiles yet. Create one to start syncing a save between devices.
         </p>
         <NuxtLink to="/profiles/new" class="btn-primary">Create your first profile</NuxtLink>
       </div>
@@ -49,9 +52,7 @@ function deviceName(id: string | undefined): string {
             <div class="flex min-w-0 flex-1 flex-col">
               <span class="truncate text-base font-semibold">{{ p.name }}</span>
               <span class="truncate text-xs text-fg-dim">
-                {{ deviceName(p.slotA?.deviceId) }}
-                ⇄
-                {{ deviceName(p.slotB?.deviceId) }}
+                {{ profileDevicesSummary(p) }}
               </span>
             </div>
             <span

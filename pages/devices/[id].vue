@@ -13,9 +13,10 @@ interface DeviceData {
 }
 interface SlotRef {
   profileName: string;
-  slotKey: "slotA" | "slotB";
+  slotId: string;
   fileRelPath: string;
   isDirectory?: boolean;
+  lastSyncedAt?: string;
 }
 interface ScanResultRow {
   cacheKey: string;
@@ -144,9 +145,6 @@ async function runScan() {
   }
 }
 
-function slotLetter(key: "slotA" | "slotB"): "A" | "B" {
-  return key === "slotA" ? "A" : "B";
-}
 </script>
 
 <template>
@@ -262,7 +260,7 @@ function slotLetter(key: "slotA" | "slotB"): "A" | "B" {
       <section class="flex flex-col gap-2">
         <h2 class="font-semibold">Save slots on this device</h2>
         <ul v-if="slots.length > 0" class="flex flex-col gap-2">
-          <li v-for="s in slots" :key="`${s.profileName}-${s.slotKey}`">
+          <li v-for="s in slots" :key="`${s.profileName}-${s.slotId}`">
             <NuxtLink
               :to="`/profiles/${encodeURIComponent(s.profileName)}`"
               class="row-button"
@@ -270,8 +268,7 @@ function slotLetter(key: "slotA" | "slotB"): "A" | "B" {
               <div class="flex min-w-0 flex-1 flex-col">
                 <span class="truncate font-semibold">{{ s.profileName }}</span>
                 <span class="truncate text-xs text-fg-dim">
-                  Slot {{ slotLetter(s.slotKey) }} ·
-                  {{ s.isDirectory ? "📂" : "" }}/{{ s.fileRelPath }}
+                  {{ s.isDirectory ? "📂 " : "" }}/{{ s.fileRelPath }}
                 </span>
               </div>
               <span aria-hidden="true" class="text-fg-dim">›</span>

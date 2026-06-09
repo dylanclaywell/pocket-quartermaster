@@ -6,21 +6,21 @@ const router = useRouter();
 const rawName = computed(() => decodeURIComponent(route.params.name as string));
 
 interface SlotResolved {
-  slotKey: "slotA" | "slotB";
+  slotId: string;
+  deviceId: string;
   deviceNickname: string;
   fileRelPath: string;
   mounted: boolean;
   exists: boolean;
   directoryMode?: boolean;
-  pendingFileName?: string | null;
   sizeBytes?: number;
   mtimeMs?: number;
+  lastSyncedAt?: string;
 }
 interface ResolveResponse {
   name: string;
   ready: boolean;
-  slotA: SlotResolved | null;
-  slotB: SlotResolved | null;
+  slots: SlotResolved[];
 }
 
 const encName = computed(() => encodeURIComponent(rawName.value));
@@ -28,72 +28,191 @@ const { data: resolveData, refresh, pending } = await useFetch<ResolveResponse>(
   () => `/api/profiles/${encName.value}/resolve`,
 );
 
-const slotA = computed(() => resolveData.value?.slotA ?? null);
-const slotB = computed(() => resolveData.value?.slotB ?? null);
+const slots = computed<SlotResolved[]>(() => resolveData.value?.slots ?? []);
 const ready = computed(() => resolveData.value?.ready ?? false);
-const bothMounted = computed(() => !!slotA.value?.mounted && !!slotB.value?.mounted);
 
-const transferError = ref<string | null>(null);
-const transferResult = ref<{
+const sourceSlotId = ref<string | null>(null);
+const destinationSlotId = ref<string | null>(null);
+
+interface TransferResponse {
   destinationPath: string;
   bytesCopied: number;
   backupPath: string | null;
-  promotedSlot: { slotKey: "slotA" | "slotB"; fileRelPath: string } | null;
-} | null>(null);
-const transferring = ref(false);
-const showConfirm = ref<null | "AtoB" | "BtoA">(null);
+  promotedSlot: { slotId: string; fileRelPath: string } | null;
+  syncedAt?: string;
+}
 
-const suggestion = computed<null | "AtoB" | "BtoA">(() => {
-  const a = slotA.value;
-  const b = slotB.value;
-  if (!a || !b) return null;
-  // Directory-mode slots can never be a source — they have no file yet.
-  const aCanSource = !a.directoryMode && a.exists;
-  const bCanSource = !b.directoryMode && b.exists;
-  if (aCanSource && !bCanSource) return "AtoB";
-  if (bCanSource && !aCanSource) return "BtoA";
-  if (a.mtimeMs && b.mtimeMs) {
-    if (a.mtimeMs > b.mtimeMs) return "AtoB";
-    if (b.mtimeMs > a.mtimeMs) return "BtoA";
+const transferError = ref<string | null>(null);
+const transferResult = ref<TransferResponse | null>(null);
+const transferring = ref(false);
+const showConfirm = ref(false);
+
+const sourceSlot = computed(() => slots.value.find((s) => s.slotId === sourceSlotId.value) ?? null);
+const destinationSlot = computed(
+  () => slots.value.find((s) => s.slotId === destinationSlotId.value) ?? null,
+);
+
+const sourceCandidates = computed(() =>
+  slots.value.filter((s) => s.mounted && s.exists && !s.directoryMode),
+);
+const destinationCandidates = computed(() =>
+  slots.value.filter((s) => s.mounted && s.slotId !== sourceSlotId.value),
+);
+
+const pendingFileName = computed(() => {
+  const src = sourceSlot.value;
+  if (!src) return null;
+  const path = src.fileRelPath;
+  if (!path) return null;
+  return path.split("/").pop() ?? path;
+});
+
+const canSync = computed(() => {
+  if (!sourceSlot.value || !destinationSlot.value) return false;
+  if (sourceSlot.value.slotId === destinationSlot.value.slotId) return false;
+  if (!sourceSlot.value.mounted || !destinationSlot.value.mounted) return false;
+  if (sourceSlot.value.directoryMode || !sourceSlot.value.exists) return false;
+  return true;
+});
+
+const blockedReason = computed(() => {
+  if (!sourceSlot.value) return "Pick a source.";
+  if (!destinationSlot.value) return "Pick a destination.";
+  if (sourceSlot.value.slotId === destinationSlot.value.slotId) {
+    return "Source and destination must be different.";
+  }
+  if (!sourceSlot.value.mounted) return `${sourceSlot.value.deviceNickname} is not mounted.`;
+  if (!destinationSlot.value.mounted) {
+    return `${destinationSlot.value.deviceNickname} is not mounted.`;
+  }
+  if (sourceSlot.value.directoryMode) {
+    return `${sourceSlot.value.deviceNickname} is a folder slot — it has no file to copy from.`;
+  }
+  if (!sourceSlot.value.exists) {
+    return `Source file is missing on ${sourceSlot.value.deviceNickname}.`;
   }
   return null;
 });
 
-async function runTransfer(direction: "AtoB" | "BtoA") {
+function pickInitialSelection() {
+  if (sourceSlotId.value && slots.value.some((s) => s.slotId === sourceSlotId.value)) {
+    if (
+      destinationSlotId.value &&
+      slots.value.some((s) => s.slotId === destinationSlotId.value)
+    ) {
+      return;
+    }
+  }
+  // Default source: the slot that was most recently *modified on disk*, then
+  // most recently synced, then the first sourceable slot.
+  const candidates = [...sourceCandidates.value];
+  candidates.sort((a, b) => {
+    const am = a.mtimeMs ?? 0;
+    const bm = b.mtimeMs ?? 0;
+    if (am !== bm) return bm - am;
+    const as = a.lastSyncedAt ? Date.parse(a.lastSyncedAt) : 0;
+    const bs = b.lastSyncedAt ? Date.parse(b.lastSyncedAt) : 0;
+    return bs - as;
+  });
+  sourceSlotId.value = candidates[0]?.slotId ?? null;
+  // Default destination: the mounted slot that is *not* the source, preferring
+  // the staler one (oldest lastSyncedAt; missing slots win).
+  const destCandidates = slots.value
+    .filter((s) => s.mounted && s.slotId !== sourceSlotId.value)
+    .sort((a, b) => {
+      const as = a.lastSyncedAt ? Date.parse(a.lastSyncedAt) : 0;
+      const bs = b.lastSyncedAt ? Date.parse(b.lastSyncedAt) : 0;
+      return as - bs;
+    });
+  destinationSlotId.value = destCandidates[0]?.slotId ?? null;
+}
+
+watch(slots, () => pickInitialSelection(), { immediate: true });
+
+watch(sourceSlotId, () => {
+  if (destinationSlotId.value === sourceSlotId.value) {
+    destinationSlotId.value =
+      slots.value.find((s) => s.mounted && s.slotId !== sourceSlotId.value)?.slotId ?? null;
+  }
+});
+
+async function runTransfer() {
+  if (!sourceSlot.value || !destinationSlot.value) return;
   transferring.value = true;
   transferError.value = null;
   transferResult.value = null;
   try {
-    transferResult.value = await $fetch(`/api/profiles/${encName.value}/transfer`, {
-      method: "POST",
-      body: { direction },
-    });
+    transferResult.value = await $fetch<TransferResponse>(
+      `/api/profiles/${encName.value}/transfer`,
+      {
+        method: "POST",
+        body: {
+          sourceSlotId: sourceSlot.value.slotId,
+          destinationSlotId: destinationSlot.value.slotId,
+        },
+      },
+    );
     await refresh();
   } catch (e) {
-    transferError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+    transferError.value =
+      (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
   } finally {
     transferring.value = false;
-    showConfirm.value = null;
+    showConfirm.value = false;
+  }
+}
+
+async function removeSlot(slotId: string) {
+  const slot = slots.value.find((s) => s.slotId === slotId);
+  if (!slot) return;
+  if (!confirm(`Remove ${slot.deviceNickname} from this profile? Files on the device are untouched.`)) {
+    return;
+  }
+  try {
+    await $fetch<{ ok: true }>(`/api/profiles/${encName.value}/slot/${slotId}`, { method: "DELETE" });
+    await refresh();
+  } catch (e) {
+    transferError.value =
+      (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
   }
 }
 
 async function deleteProfile() {
   if (!confirm(`Delete profile "${rawName.value}"? Save files on devices are untouched.`)) return;
-  await $fetch(`/api/profiles/${encName.value}`, { method: "DELETE" });
+  await $fetch<{ ok: true }>(`/api/profiles/${encName.value}`, { method: "DELETE" });
   router.push("/");
 }
 
-function slotSubtitle(s: SlotResolved | null): string {
-  if (!s) return "Not configured";
-  if (!s.mounted) return `${s.deviceNickname} — not mounted`;
+function slotSubtitle(s: SlotResolved): string {
+  const synced = s.lastSyncedAt
+    ? ` · synced ${formatRelativeTime(Date.parse(s.lastSyncedAt))}`
+    : "";
+  if (!s.mounted) return `${s.deviceNickname} — not mounted${synced}`;
   if (s.directoryMode) {
-    if (s.pendingFileName) {
-      return `${s.deviceNickname} — folder · will be created as ${s.pendingFileName}`;
-    }
-    return `${s.deviceNickname} — folder · waiting for the other slot to provide a file`;
+    return `${s.deviceNickname} — folder · waiting for a source${synced}`;
   }
-  if (!s.exists) return `${s.deviceNickname} — file missing on device`;
-  return `${s.deviceNickname} — ${formatBytes(s.sizeBytes)} · ${formatRelativeTime(s.mtimeMs)}`;
+  if (!s.exists) return `${s.deviceNickname} — file missing on device${synced}`;
+  return `${s.deviceNickname} — ${formatBytes(s.sizeBytes)} · ${formatRelativeTime(s.mtimeMs)}${synced}`;
+}
+
+function resolvedForConfirm(s: SlotResolved) {
+  // The destination slot in the confirm dialog needs the pending filename
+  // computed against the *current* source — augment the resolved object with
+  // it on the fly rather than threading it through the resolve API.
+  return {
+    deviceNickname: s.deviceNickname,
+    fileRelPath: s.fileRelPath,
+    exists: s.exists,
+    directoryMode: s.directoryMode,
+  };
+}
+
+function dropdownLabel(s: SlotResolved): string {
+  const parts: string[] = [s.deviceNickname];
+  if (s.directoryMode) parts.push("📂 folder");
+  else if (!s.exists) parts.push("missing");
+  if (!s.mounted) parts.push("absent");
+  return parts.join(" · ");
 }
 </script>
 
@@ -101,85 +220,98 @@ function slotSubtitle(s: SlotResolved | null): string {
   <div class="flex flex-col gap-4">
     <header class="flex flex-col gap-1">
       <h1 class="text-xl font-bold">{{ rawName }}</h1>
-      <p
-        class="text-sm"
-        :class="ready ? 'text-ok' : 'text-warn'"
-      >
-        {{ ready ? "Ready to transfer" : "Configure both slots to enable transfer" }}
+      <p class="text-sm" :class="ready ? 'text-ok' : 'text-warn'">
+        {{ ready ? `${slots.length} device${slots.length === 1 ? '' : 's'} — ready to transfer` : "Add at least two devices to enable transfer" }}
       </p>
     </header>
 
-    <div v-if="pending && !resolveData" class="flex items-center justify-center gap-3 py-8 text-fg-dim">
+    <div
+      v-if="pending && !resolveData"
+      class="flex items-center justify-center gap-3 py-8 text-fg-dim"
+    >
       <Spinner /> <span>Resolving slots…</span>
     </div>
 
     <section v-else class="flex flex-col gap-3">
       <SlotPanel
-        slot-letter="A"
-        :resolved="slotA"
+        v-for="(s, i) in slots"
+        :key="s.slotId"
+        :index="i"
+        :resolved="{ ...s, pendingFileName: s.directoryMode ? pendingFileName : null }"
         :encoded-name="encName"
-        :file-rel-path="slotA?.fileRelPath"
-        :subtitle="slotSubtitle(slotA)"
+        :subtitle="slotSubtitle(s)"
+        @remove="removeSlot(s.slotId)"
       />
-      <SlotPanel
-        slot-letter="B"
-        :resolved="slotB"
-        :encoded-name="encName"
-        :file-rel-path="slotB?.fileRelPath"
-        :subtitle="slotSubtitle(slotB)"
-      />
+      <NuxtLink
+        :to="`/profiles/${encName}/slot/new`"
+        class="btn-secondary self-start"
+      >
+        + Add device slot
+      </NuxtLink>
     </section>
 
     <section v-if="ready" class="card flex flex-col gap-3">
       <div>
         <p class="font-semibold">Transfer</p>
         <p class="text-xs text-fg-dim">
-          A timestamped backup of the destination file is saved before any overwrite.
+          Pick which device is the source of truth and which receives the copy.
+          A timestamped backup is saved before any overwrite.
         </p>
       </div>
 
-      <div v-if="!bothMounted" class="text-sm text-warn">
-        Both devices must be mounted to transfer.
-        <button class="btn-ghost ml-2 px-2 py-1 text-xs" @click="refresh()">Recheck</button>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <label class="flex flex-col gap-1 text-sm">
+          <span class="text-xs uppercase tracking-wide text-fg-dim">Source</span>
+          <select v-model="sourceSlotId" class="rounded-lg border border-border bg-surface-2 px-3 py-2">
+            <option :value="null">— pick a source —</option>
+            <option v-for="s in slots" :key="s.slotId" :value="s.slotId" :disabled="!sourceCandidates.includes(s)">
+              {{ dropdownLabel(s) }}
+            </option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
+          <span class="text-xs uppercase tracking-wide text-fg-dim">Destination</span>
+          <select v-model="destinationSlotId" class="rounded-lg border border-border bg-surface-2 px-3 py-2">
+            <option :value="null">— pick a destination —</option>
+            <option
+              v-for="s in slots"
+              :key="s.slotId"
+              :value="s.slotId"
+              :disabled="!destinationCandidates.includes(s)"
+            >
+              {{ dropdownLabel(s) }}
+            </option>
+          </select>
+        </label>
       </div>
 
-      <div v-else class="flex flex-col gap-2">
-        <p v-if="suggestion" class="text-xs text-fg-dim">
-          Suggestion: <span class="font-semibold text-fg">
-            {{ suggestion === "AtoB" ? "A → B" : "B → A" }}
-          </span>
-        </p>
+      <p v-if="blockedReason" class="text-xs text-warn">{{ blockedReason }}</p>
 
-        <button
-          class="btn-secondary"
-          :disabled="!slotA?.exists || slotA?.directoryMode || transferring"
-          @click="showConfirm = 'AtoB'"
-        >
-          A → B
-          <span class="text-xs text-fg-dim">
-            ({{ slotA?.deviceNickname }} → {{ slotB?.deviceNickname }})
+      <button
+        class="btn-primary"
+        :disabled="!canSync || transferring"
+        @click="showConfirm = true"
+      >
+        <Spinner v-if="transferring" size="sm" />
+        <span>
+          {{ transferring ? "Copying…" : "Sync" }}
+          <span v-if="sourceSlot && destinationSlot" class="text-xs opacity-75">
+            ({{ sourceSlot.deviceNickname }} → {{ destinationSlot.deviceNickname }})
           </span>
-        </button>
-        <button
-          class="btn-secondary"
-          :disabled="!slotB?.exists || slotB?.directoryMode || transferring"
-          @click="showConfirm = 'BtoA'"
-        >
-          B → A
-          <span class="text-xs text-fg-dim">
-            ({{ slotB?.deviceNickname }} → {{ slotA?.deviceNickname }})
-          </span>
-        </button>
-      </div>
+        </span>
+      </button>
 
-      <div v-if="transferResult" class="rounded-xl border border-ok bg-[color-mix(in_oklab,var(--color-ok)_15%,transparent)] p-3 text-sm">
+      <div
+        v-if="transferResult"
+        class="rounded-xl border border-ok bg-[color-mix(in_oklab,var(--color-ok)_15%,transparent)] p-3 text-sm"
+      >
         <p class="font-semibold text-ok">Transfer complete</p>
         <p class="break-all text-fg-dim">
           {{ formatBytes(transferResult.bytesCopied) }} → {{ transferResult.destinationPath }}
         </p>
         <p v-if="transferResult.promotedSlot" class="text-xs text-accent">
-          Slot {{ transferResult.promotedSlot.slotKey === "slotA" ? "A" : "B" }}
-          now points at <span class="font-mono">{{ transferResult.promotedSlot.fileRelPath }}</span>
+          That slot now points at
+          <span class="font-mono">{{ transferResult.promotedSlot.fileRelPath }}</span>
           — future transfers can go either way.
         </p>
         <p v-if="transferResult.backupPath" class="break-all text-xs text-fg-dim">
@@ -199,13 +331,12 @@ function slotSubtitle(s: SlotResolved | null): string {
     </div>
 
     <TransferConfirm
-      v-if="showConfirm"
-      :direction="showConfirm"
-      :slot-a="slotA"
-      :slot-b="slotB"
+      v-if="showConfirm && sourceSlot && destinationSlot"
+      :source="resolvedForConfirm(sourceSlot)"
+      :destination="resolvedForConfirm(destinationSlot)"
       :busy="transferring"
-      @cancel="showConfirm = null"
-      @confirm="runTransfer(showConfirm!)"
+      @cancel="showConfirm = false"
+      @confirm="runTransfer"
     />
   </div>
 </template>

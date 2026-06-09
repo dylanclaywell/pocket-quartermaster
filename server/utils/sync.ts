@@ -2,15 +2,10 @@ import { copyFile, mkdir, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, dirname, join, sep } from "node:path";
 import { ensureBackupDir } from "./storage";
-import type { Profile, SlotKey } from "./types";
-
-export interface SyncPlan {
-  source: ResolvedSlot;
-  destination: ResolvedSlot;
-}
+import type { ProfileSlot } from "./types";
 
 export interface ResolvedSlot {
-  slotKey: SlotKey;
+  slotId: string;
   deviceId: string;
   deviceNickname: string;
   mountPath: string;
@@ -20,29 +15,25 @@ export interface ResolvedSlot {
   /** Stored path relative to the device root (forward slashes). */
   fileRelPath: string;
   /** True iff the slot is configured to receive a file into a folder, with
-      the filename derived from the other side at transfer time. */
+      the filename derived from the source side at transfer time. */
   directoryMode: boolean;
   /** For file slots: whether the file exists.
       For directory slots: whether the directory exists. */
   exists: boolean;
   sizeBytes?: number;
   mtimeMs?: number;
+  lastSyncedAt?: string;
 }
 
 export async function resolveSlot(
-  profile: Profile,
-  slotKey: SlotKey,
+  slot: ProfileSlot,
   mountPath: string,
   deviceNickname: string,
 ): Promise<ResolvedSlot> {
-  const slot = profile[slotKey];
-  if (!slot) {
-    throw new Error(`Profile "${profile.name}" has no ${slotKey} configured`);
-  }
   const absolutePath = join(mountPath, slot.fileRelPath.split("/").join(sep));
   const directoryMode = slot.isDirectory === true;
   const result: ResolvedSlot = {
-    slotKey,
+    slotId: slot.id,
     deviceId: slot.deviceId,
     deviceNickname,
     mountPath,
@@ -50,6 +41,7 @@ export async function resolveSlot(
     fileRelPath: slot.fileRelPath,
     directoryMode,
     exists: existsSync(absolutePath),
+    lastSyncedAt: slot.lastSyncedAt,
   };
   if (result.exists && !directoryMode) {
     try {
@@ -133,25 +125,4 @@ export function describeSlotResolved(s: ResolvedSlot): string {
   return s.exists
     ? `${s.deviceNickname}:/${s.fileRelPath}${size}${when}`
     : `${s.deviceNickname}:/${s.fileRelPath} (missing)`;
-}
-
-export function pickDirection(
-  bySlot: Record<SlotKey, ResolvedSlot>,
-): { source: SlotKey; destination: SlotKey } | undefined {
-  const a = bySlot.slotA;
-  const b = bySlot.slotB;
-  // A directory-mode slot can never be a source — it has no file yet.
-  const aCanSource = !a.directoryMode && a.exists;
-  const bCanSource = !b.directoryMode && b.exists;
-  if (aCanSource && !bCanSource) return { source: "slotA", destination: "slotB" };
-  if (bCanSource && !aCanSource) return { source: "slotB", destination: "slotA" };
-  return undefined;
-}
-
-export function newerOf(a: ResolvedSlot, b: ResolvedSlot): SlotKey | undefined {
-  if (a.mtimeMs && b.mtimeMs) {
-    if (a.mtimeMs > b.mtimeMs) return "slotA";
-    if (b.mtimeMs > a.mtimeMs) return "slotB";
-  }
-  return undefined;
 }

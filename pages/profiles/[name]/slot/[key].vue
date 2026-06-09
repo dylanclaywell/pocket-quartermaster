@@ -5,8 +5,9 @@ const route = useRoute();
 const router = useRouter();
 const rawName = computed(() => decodeURIComponent(route.params.name as string));
 const encName = computed(() => encodeURIComponent(rawName.value));
-const slotKey = computed(() => route.params.key as "slotA" | "slotB");
-const slotLetter = computed(() => (slotKey.value === "slotA" ? "A" : "B"));
+const slotIdParam = computed(() => route.params.key as string);
+const isNewSlot = computed(() => slotIdParam.value === "new");
+const pageTitle = computed(() => (isNewSlot.value ? "Add device slot" : "Replace device slot"));
 
 const SAVE_EXTENSIONS = [
   ".srm", ".sav", ".sa1", ".sa2", ".sa3", ".sa4", ".state", ".st0", ".st1", ".st2",
@@ -129,7 +130,7 @@ async function saveSlot() {
     await $fetch(`/api/profiles/${encName.value}/slot`, {
       method: "POST",
       body: {
-        slotKey: slotKey.value,
+        ...(isNewSlot.value ? {} : { slotId: slotIdParam.value }),
         deviceId: selectedDevice.value.id,
         fileRelPath,
         ...(isDirectory ? { isDirectory: true } : {}),
@@ -148,7 +149,7 @@ async function saveSlot() {
   <div class="flex flex-col gap-4">
     <header>
       <p class="text-xs uppercase tracking-wide text-fg-dim">{{ rawName }}</p>
-      <h1 class="text-xl font-bold">Configure slot {{ slotLetter }}</h1>
+      <h1 class="text-xl font-bold">{{ pageTitle }}</h1>
     </header>
 
     <p v-if="error" class="text-danger">{{ error }}</p>
@@ -289,7 +290,7 @@ async function saveSlot() {
     <!-- Step 3: confirm -->
     <section v-else-if="step === 'save'" class="flex flex-col gap-3">
       <div class="card flex flex-col gap-2">
-        <p class="text-xs uppercase tracking-wide text-fg-dim">Slot {{ slotLetter }}</p>
+        <p class="text-xs uppercase tracking-wide text-fg-dim">{{ pageTitle }}</p>
         <p class="font-semibold">{{ selectedDevice?.nickname }}</p>
 
         <template v-if="selectedFolder">
@@ -312,7 +313,7 @@ async function saveSlot() {
       <div class="flex gap-2">
         <button class="btn-primary flex-1" :disabled="busy" @click="saveSlot">
           <Spinner v-if="busy" size="sm" />
-          <span>{{ busy ? "Saving…" : "Save slot " + slotLetter }}</span>
+          <span>{{ busy ? "Saving…" : (isNewSlot ? "Add slot" : "Save changes") }}</span>
         </button>
         <button class="btn-secondary" @click="step = 'browse'">Back</button>
       </div>

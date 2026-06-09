@@ -10,7 +10,9 @@ export default defineEventHandler(async (event) => {
   if (!profile) throw createError({ statusCode: 404, statusMessage: "profile not found" });
   return {
     profile: { ...profile, ready: profileIsReady(profile) },
-    slotA: profile.slotA ? { ...profile.slotA, device: findDevice(cfg, profile.slotA.deviceId) ?? null } : null,
-    slotB: profile.slotB ? { ...profile.slotB, device: findDevice(cfg, profile.slotB.deviceId) ?? null } : null,
+    slots: profile.slots.map((s) => ({
+      ...s,
+      device: findDevice(cfg, s.deviceId) ?? null,
+    })),
   };
 });
