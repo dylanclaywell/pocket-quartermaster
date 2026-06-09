@@ -1,6 +1,13 @@
 * text=auto
 
+# Linux/Pi deploy scripts MUST be LF
 *.sh text eol=lf
 *.service text eol=lf
-deploy/** text eol=lf
 .github/** text eol=lf
+deploy/*.sh text eol=lf
+deploy/*.service text eol=lf
+
+# Windows scripts MUST be CRLF (cmd is finicky with LF endings)
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

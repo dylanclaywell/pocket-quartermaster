@@ -66,8 +66,10 @@ jobs:
           mkdir -p release-assets
           cp savesmanager-output.zip release-assets/
           cp deploy/savesmanager.service release-assets/
-          cp deploy/update.sh release-assets/
-          cp deploy/install.sh release-assets/
+          cp deploy/install.sh deploy/update.sh release-assets/
+          cp deploy/install.ps1 deploy/install.bat release-assets/
+          cp deploy/update.ps1 deploy/update.bat release-assets/
+          cp deploy/run.ps1 deploy/run.bat release-assets/
 
       - name: Upload assets to release
         env:
