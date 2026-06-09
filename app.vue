@@ -22,6 +22,13 @@ const showBack = computed(() => route.path !== "/");
         Pocket Quartermaster
       </NuxtLink>
       <NuxtLink
+        to="/profiles"
+        class="btn-ghost px-2 py-2 text-sm font-medium"
+        aria-label="Profiles"
+      >
+        Profiles
+      </NuxtLink>
+      <NuxtLink
         to="/activity"
         class="btn-ghost px-2 py-2 text-sm font-medium"
         aria-label="Activity"
