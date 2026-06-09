@@ -1,6 +1,6 @@
 {
   "name": "savesmanager",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Web UI for syncing retro game save files between mounted devices (Nuxt + Tailwind, mobile-friendly)",
   "type": "module",
