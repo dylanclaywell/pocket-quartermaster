@@ -1,9 +1,9 @@
 ---
 id: home-dashboard-reframe-pocket-quartermaster
 title: Home dashboard reframe (Pocket Quartermaster)
-status: active
+status: completed
 created: 2026-06-09T21:30:16.187Z
-updated: 2026-06-09T21:30:16.187Z
+updated: 2026-06-10T00:02:58.435Z
 tags:
   - dashboard
   - ux
