@@ -14,7 +14,6 @@ export default defineEventHandler(async (event) => {
     label?: string | null;
     retroarchActivityDir?: string | null;
     romsRootRelPath?: string | null;
-    romLibraryRole?: "master" | "destination" | null;
   }>(event);
   const raw = body?.path?.trim();
   if (!raw) throw createError({ statusCode: 400, statusMessage: "path required" });
@@ -62,19 +61,6 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: "romsRootRelPath must be a string or null",
-      });
-    }
-  }
-
-  if (body && "romLibraryRole" in body) {
-    if (body.romLibraryRole === null) {
-      delete entry.romLibraryRole;
-    } else if (body.romLibraryRole === "master" || body.romLibraryRole === "destination") {
-      entry.romLibraryRole = body.romLibraryRole;
-    } else {
-      throw createError({
-        statusCode: 400,
-        statusMessage: "romLibraryRole must be 'master', 'destination', or null",
       });
     }
   }

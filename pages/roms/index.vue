@@ -17,7 +17,7 @@ interface LibrarySummary {
   cacheKey: string;
   sourceKind: "device" | "virtualMount";
   sourceLabel: string;
-  role: "master" | "destination";
+  role: "library" | "destination";
   configured: boolean;
   cacheExists: boolean;
   lastScannedAt?: string;
@@ -49,7 +49,29 @@ const scanning = ref(false);
 const scanResults = ref<ScanResultRow[]>([]);
 const search = ref("");
 
-const configuredCount = computed(() => libraries.value.filter((l) => l.configured).length);
+const configuredSources = computed(() => libraries.value.filter((l) => l.configured));
+const libraryKey = computed(() => libraries.value.find((l) => l.role === "library")?.cacheKey ?? "");
+const librarySource = computed(() => libraries.value.find((l) => l.cacheKey === libraryKey.value) ?? null);
+const destinationSources = computed(() =>
+  libraries.value.filter((l) => l.role === "destination" && (l.configured || l.cacheExists)),
+);
+const settingLibrary = ref(false);
+
+async function setLibrary(cacheKey: string) {
+  settingLibrary.value = true;
+  loadError.value = null;
+  try {
+    await $fetch("/api/roms/library", {
+      method: "PUT",
+      body: { sourceCacheKey: cacheKey || null },
+    });
+    await loadCached();
+  } catch (e) {
+    loadError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    settingLibrary.value = false;
+  }
+}
 
 const scanSummary = computed(() => {
   if (scanResults.value.length === 0) return null;
@@ -80,6 +102,32 @@ const filteredGames = computed(() => {
 const totalFiles = computed(() =>
   games.value.reduce((sum, g) => sum + g.variantCount, 0),
 );
+
+// Group filtered games by system, systems alphabetized, games alphabetized.
+const groupedGames = computed(() => {
+  const groups = new Map<string, typeof games.value>();
+  for (const g of filteredGames.value) {
+    const arr = groups.get(g.system) ?? [];
+    arr.push(g);
+    groups.set(g.system, arr);
+  }
+  return [...groups.entries()]
+    .map(([system, list]) => ({
+      system,
+      games: [...list].sort((a, b) =>
+        a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" }),
+      ),
+    }))
+    .sort((a, b) => a.system.localeCompare(b.system, undefined, { sensitivity: "base" }));
+});
+
+const collapsed = ref<Set<string>>(new Set());
+function toggleSystem(system: string) {
+  const next = new Set(collapsed.value);
+  if (next.has(system)) next.delete(system);
+  else next.add(system);
+  collapsed.value = next;
+}
 
 async function loadCached() {
   loadError.value = null;
@@ -118,10 +166,13 @@ onMounted(loadCached);
   <div class="flex flex-col gap-5">
     <header class="flex items-center justify-between gap-2">
       <h1 class="text-xl font-bold">ROM library</h1>
-      <button class="btn-primary text-sm" :disabled="scanning" @click="runScan()">
-        <Spinner v-if="scanning" size="sm" />
-        <span>{{ scanning ? "Scanning…" : "Scan libraries" }}</span>
-      </button>
+      <div class="flex gap-2">
+        <NuxtLink to="/roms/transfer" class="btn-secondary text-sm">Transfer →</NuxtLink>
+        <button class="btn-primary text-sm" :disabled="scanning" @click="runScan()">
+          <Spinner v-if="scanning" size="sm" />
+          <span>{{ scanning ? "Scanning…" : "Scan libraries" }}</span>
+        </button>
+      </div>
     </header>
 
     <p v-if="loadError" class="text-danger">{{ loadError }}</p>
@@ -139,43 +190,64 @@ onMounted(loadCached);
       <template v-if="scanSummary.errors > 0"> · {{ scanSummary.errors }} error(s)</template>
     </div>
 
-    <!-- Libraries -->
+    <!-- Library source -->
     <section class="flex flex-col gap-2">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">Libraries</h2>
-      <div
-        v-if="configuredCount === 0"
-        class="card text-center text-fg-dim"
-      >
-        <p class="mb-1">No ROM libraries configured yet.</p>
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">Library source</h2>
+      <div v-if="configuredSources.length === 0" class="card text-center text-fg-dim">
+        <p class="mb-1">No ROM sources configured yet.</p>
         <p class="text-xs">
           Set a <span class="font-semibold text-fg">ROM library folder</span> on a device
-          or virtual mount, then scan. Its subfolders (gba, snes, …) are read as systems.
+          or virtual mount, then come back to pick which one is your library.
+          Its subfolders (gba, snes, …) are read as systems.
         </p>
         <NuxtLink to="/devices" class="btn-secondary mt-3 text-sm">Configure a source</NuxtLink>
       </div>
-      <ul v-else class="flex flex-col gap-2">
+      <div v-else class="card flex flex-col gap-2">
+        <label class="flex flex-col gap-1">
+          <span class="label">This device holds your library</span>
+          <select
+            class="input"
+            :value="libraryKey"
+            :disabled="settingLibrary"
+            @change="setLibrary(($event.target as HTMLSelectElement).value)"
+          >
+            <option value="">(choose a source)</option>
+            <option v-for="s in configuredSources" :key="s.cacheKey" :value="s.cacheKey">
+              {{ s.sourceLabel }}
+            </option>
+          </select>
+        </label>
+        <div v-if="librarySource" class="flex items-center justify-between gap-3 text-xs text-fg-dim">
+          <span class="truncate">
+            <span v-if="librarySource.romsRootRelPath" class="font-mono">/{{ librarySource.romsRootRelPath }}</span>
+            <template v-if="librarySource.cacheExists">
+              · {{ librarySource.fileCount ?? 0 }} files ·
+              {{ librarySource.lastScannedAt ? formatRelativeIso(librarySource.lastScannedAt) : "—" }}
+            </template>
+          </span>
+          <button class="btn-ghost shrink-0 text-sm" :disabled="scanning" @click="runScan(libraryKey)">
+            Scan
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Destinations -->
+    <section v-if="destinationSources.length > 0" class="flex flex-col gap-2">
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">Destinations</h2>
+        <NuxtLink to="/roms/transfer" class="text-xs text-fg-dim hover:text-fg">Transfer →</NuxtLink>
+      </div>
+      <ul class="flex flex-col gap-2">
         <li
-          v-for="lib in libraries.filter((l) => l.configured || l.cacheExists)"
+          v-for="lib in destinationSources"
           :key="lib.cacheKey"
           class="card flex items-center justify-between gap-3"
         >
           <div class="flex min-w-0 flex-1 flex-col">
-            <span class="flex items-center gap-2">
-              <span class="truncate font-semibold">{{ lib.sourceLabel }}</span>
-              <span
-                class="pill shrink-0"
-                :class="
-                  lib.role === 'destination'
-                    ? 'bg-surface-2 text-fg-dim'
-                    : 'bg-[color-mix(in_oklab,var(--color-accent,var(--color-ok))_22%,transparent)] text-fg'
-                "
-              >
-                {{ lib.role }}
-              </span>
-            </span>
+            <span class="truncate font-semibold">{{ lib.sourceLabel }}</span>
             <span class="truncate text-xs text-fg-dim">
               <span v-if="lib.romsRootRelPath" class="font-mono">/{{ lib.romsRootRelPath }}</span>
-              <span v-else>not configured</span>
               <template v-if="lib.cacheExists">
                 · {{ lib.fileCount ?? 0 }} files ·
                 {{ lib.lastScannedAt ? formatRelativeIso(lib.lastScannedAt) : "—" }}
@@ -219,38 +291,56 @@ onMounted(loadCached);
         <Spinner /> <span>Loading library…</span>
       </div>
       <div v-else-if="games.length === 0" class="card text-center text-fg-dim">
-        <p>No ROMs scanned yet.</p>
-        <p class="mt-2 text-xs">Configure a library folder and press “Scan libraries”.</p>
+        <template v-if="configuredSources.length > 0 && !libraryKey">
+          <p>No library source chosen.</p>
+          <p class="mt-2 text-xs">Pick which device holds your library above.</p>
+        </template>
+        <template v-else>
+          <p>No ROMs scanned yet.</p>
+          <p class="mt-2 text-xs">Press “Scan libraries”, or check the library folder path.</p>
+        </template>
       </div>
-      <ul v-else class="flex flex-col gap-2">
-        <li v-for="g in filteredGames" :key="g.gameKey">
-          <NuxtLink :to="`/roms/${encodeURIComponent(g.gameKey)}`" class="row-button">
-            <div class="flex min-w-0 flex-1 flex-col">
-              <span class="truncate font-semibold">{{ g.displayName }}</span>
-              <span class="truncate text-xs text-fg-dim">
-                {{ g.system }} · {{ g.variantCount }} variant{{ g.variantCount === 1 ? "" : "s" }}
-                · {{ formatBytes(g.totalSizeBytes) }}
-                <template v-if="g.destinationCount > 0">
-                  · on {{ g.destinationsInstalled }}/{{ g.destinationCount }} devices
-                </template>
-              </span>
-            </div>
-            <span
-              v-if="g.hasMismatch"
-              class="pill shrink-0 bg-[color-mix(in_oklab,var(--color-warn)_25%,transparent)] text-warn"
-              title="A device has a variant installed that differs from its preferred variant"
-              >⚠</span
-            >
-            <span aria-hidden="true" class="text-fg-dim">›</span>
-          </NuxtLink>
-        </li>
-        <li
-          v-if="filteredGames.length === 0"
-          class="card text-center text-sm text-fg-dim"
-        >
-          No games match “{{ search }}”.
-        </li>
-      </ul>
+      <div v-else-if="filteredGames.length === 0" class="card text-center text-sm text-fg-dim">
+        No games match “{{ search }}”.
+      </div>
+      <div v-else class="flex flex-col gap-3">
+        <div v-for="grp in groupedGames" :key="grp.system" class="flex flex-col gap-2">
+          <button
+            class="flex items-center justify-between gap-2 text-left"
+            @click="toggleSystem(grp.system)"
+          >
+            <span class="text-sm font-semibold">
+              {{ grp.system }} <span class="text-fg-dim">· {{ grp.games.length }}</span>
+            </span>
+            <span aria-hidden="true" class="text-fg-dim">
+              {{ collapsed.has(grp.system) ? "▸" : "▾" }}
+            </span>
+          </button>
+          <ul v-show="!collapsed.has(grp.system)" class="flex flex-col gap-2">
+            <li v-for="g in grp.games" :key="g.gameKey">
+              <NuxtLink :to="`/roms/${encodeURIComponent(g.gameKey)}`" class="row-button">
+                <div class="flex min-w-0 flex-1 flex-col">
+                  <span class="truncate font-semibold">{{ g.displayName }}</span>
+                  <span class="truncate text-xs text-fg-dim">
+                    {{ g.variantCount }} variant{{ g.variantCount === 1 ? "" : "s" }}
+                    · {{ formatBytes(g.totalSizeBytes) }}
+                    <template v-if="g.destinationCount > 0">
+                      · on {{ g.destinationsInstalled }}/{{ g.destinationCount }} devices
+                    </template>
+                  </span>
+                </div>
+                <span
+                  v-if="g.hasMismatch"
+                  class="pill shrink-0 bg-[color-mix(in_oklab,var(--color-warn)_25%,transparent)] text-warn"
+                  title="A device has a variant installed that differs from its preferred variant"
+                  >⚠</span
+                >
+                <span aria-hidden="true" class="text-fg-dim">›</span>
+              </NuxtLink>
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
   </div>
 </template>

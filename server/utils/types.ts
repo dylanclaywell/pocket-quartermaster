@@ -27,16 +27,15 @@ export interface DeviceIdentity {
   retroarchActivityDir?: string;
   /** Forward-slash path, relative to the mount root, of the ROM library root —
       the directory whose immediate subfolders are per-system ROM folders
-      (e.g. `gba/`, `snes/`). When set, the ROM-management feature treats this
-      device as a library and scans it. Parallel to `retroarchActivityDir`. */
+      (e.g. `gba/`, `snes/`). When set, the ROM-management feature scans this
+      device. Parallel to `retroarchActivityDir`. */
   romsRootRelPath?: string;
-  /** Whether this source is the canonical library (`master`) or a transfer
-      target (`destination`). Unset is treated as `master` for backwards
-      compatibility with libraries configured before roles existed. */
-  romLibraryRole?: RomLibraryRole;
 }
 
-export type RomLibraryRole = "master" | "destination";
+/** A ROM source's role, derived from `ConfigFile.romLibrarySourceKey`: the one
+    source matching that key is the `library`; every other ROM-configured source
+    is a `destination`. Never stored per-source. */
+export type RomLibraryRole = "library" | "destination";
 
 /** A single device slot inside a profile. A profile holds N of these and the
     user picks source + destination explicitly at transfer time. */
@@ -93,10 +92,8 @@ export interface VirtualMount {
   retroarchActivityDir?: string;
   /** Forward-slash path, relative to this mount, of the ROM library root
       whose immediate subfolders are per-system ROM folders. When set, the
-      ROM-management feature treats this mount as a library and scans it. */
+      ROM-management feature scans this mount. */
   romsRootRelPath?: string;
-  /** Library role for this mount. Unset = `master` (backwards compatible). */
-  romLibraryRole?: RomLibraryRole;
 }
 
 /** User-editable, persisted per-game data. Keyed by `gameKey`
@@ -136,6 +133,10 @@ export interface ConfigFile {
   gameMeta: GameMeta[];
   /** Per-(game, destination) preferred-variant rows. */
   deviceGamePreferences: DeviceGamePreference[];
+  /** ROM cache key (`romdev-…` / `romvm-…`) of the source designated as the
+      canonical library. Every other ROM-configured source is a destination.
+      Unset means no library chosen yet (the ROMs page prompts for one). */
+  romLibrarySourceKey?: string;
 }
 
 export const MARKER_FILENAME = ".pqm-device-id.json";

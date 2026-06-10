@@ -15,7 +15,7 @@ interface ComputedVariant {
   flags: string[];
   extension: string;
   isDefault: boolean;
-  masterSources: { cacheKey: string; sourceLabel: string }[];
+  librarySources: { cacheKey: string; sourceLabel: string }[];
 }
 interface DestinationState {
   cacheKey: string;
@@ -268,7 +268,7 @@ function statusPill(status: DestinationState["status"]): { text: string; cls: st
               <span>· {{ formatBytes(v.sizeBytes) }}</span>
             </span>
             <span class="text-xs text-fg-dim">
-              from: {{ v.masterSources.map((s) => s.sourceLabel).join(", ") }}
+              from: {{ v.librarySources.map((s) => s.sourceLabel).join(", ") }}
             </span>
           </li>
         </ul>

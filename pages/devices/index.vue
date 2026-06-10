@@ -31,7 +31,6 @@ interface VirtualMount {
   activityCacheKey: string;
   romsRootRelPath?: string;
   romsCacheKey: string;
-  romLibraryRole?: "master" | "destination";
 }
 interface ConfigInfo {
   configPath: string;
@@ -248,23 +247,6 @@ async function applyVmRomsDir(v: VirtualMount, value: string | null) {
       body: { path: v.path, romsRootRelPath: value },
     });
     cancelVmRomsEdit();
-    await refresh();
-  } catch (e) {
-    vmRomsError.value =
-      (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
-  } finally {
-    vmRomsBusy.value = false;
-  }
-}
-
-async function applyVmRomRole(v: VirtualMount, value: "master" | "destination") {
-  vmRomsBusy.value = true;
-  vmRomsError.value = null;
-  try {
-    await $fetch(`/api/virtual-mounts`, {
-      method: "PATCH",
-      body: { path: v.path, romLibraryRole: value },
-    });
     await refresh();
   } catch (e) {
     vmRomsError.value =
@@ -504,21 +486,10 @@ async function scanVmRoms(v: VirtualMount) {
             <span class="font-semibold text-fg">ROM library:</span>
             {{ v.romsRootRelPath ? `/${v.romsRootRelPath}` : "not set" }}
           </p>
-          <label
-            v-if="v.romsRootRelPath"
-            class="flex items-center gap-2 text-xs text-fg-dim"
-          >
-            <span class="font-semibold text-fg">Role</span>
-            <select
-              class="input max-w-40 py-1 text-xs"
-              :value="v.romLibraryRole ?? 'master'"
-              :disabled="vmRomsBusy"
-              @change="applyVmRomRole(v, ($event.target as HTMLSelectElement).value as 'master' | 'destination')"
-            >
-              <option value="master">Master</option>
-              <option value="destination">Destination</option>
-            </select>
-          </label>
+          <p v-if="v.romsRootRelPath" class="text-xs text-fg-dim">
+            Pick your library source on the
+            <NuxtLink to="/roms" class="underline hover:text-fg">ROM library</NuxtLink> page.
+          </p>
 
           <div v-if="editingVmPath === v.path" class="flex flex-col gap-2">
             <p v-if="vmActivityError" class="text-danger text-sm">{{ vmActivityError }}</p>

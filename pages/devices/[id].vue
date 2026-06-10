@@ -12,7 +12,6 @@ interface DeviceData {
   activityCacheKey: string;
   romsRootRelPath?: string;
   romsCacheKey: string;
-  romLibraryRole?: "master" | "destination";
 }
 interface SlotRef {
   profileName: string;
@@ -184,22 +183,6 @@ async function applyRomsDir(value: string | null) {
   }
 }
 
-async function applyRomRole(value: "master" | "destination") {
-  romsBusy.value = true;
-  romsError.value = null;
-  try {
-    await $fetch(`/api/devices/${id.value}`, {
-      method: "PATCH",
-      body: { romLibraryRole: value },
-    });
-    await refresh();
-  } catch (e) {
-    romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
-  } finally {
-    romsBusy.value = false;
-  }
-}
-
 async function runRomsScan() {
   if (!device.value) return;
   romsScanning.value = true;
@@ -362,21 +345,11 @@ async function runRomsScan() {
           />
         </div>
 
-        <label
-          v-if="device.romsRootRelPath && !editingRoms"
-          class="flex items-center gap-2 text-sm text-fg-dim"
-        >
-          <span>Role</span>
-          <select
-            class="input max-w-40"
-            :value="device.romLibraryRole ?? 'master'"
-            :disabled="romsBusy"
-            @change="applyRomRole(($event.target as HTMLSelectElement).value as 'master' | 'destination')"
-          >
-            <option value="master">Master (canonical)</option>
-            <option value="destination">Destination</option>
-          </select>
-        </label>
+        <p v-if="device.romsRootRelPath && !editingRoms" class="text-xs text-fg-dim">
+          Choose which device is your library on the
+          <NuxtLink to="/roms" class="underline hover:text-fg">ROM library</NuxtLink>
+          page.
+        </p>
 
         <p
           v-if="romsScanResult"

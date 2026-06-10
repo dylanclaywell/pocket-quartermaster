@@ -41,8 +41,8 @@ export interface ComputedVariant {
   extension: string;
   /** True when this is the game's default variant. */
   isDefault: boolean;
-  /** Master libraries that hold this exact file. */
-  masterSources: { cacheKey: string; sourceLabel: string }[];
+  /** Library source(s) that hold this exact file. */
+  librarySources: { cacheKey: string; sourceLabel: string }[];
 }
 
 export type DestinationStatus = "not-installed" | "match" | "mismatch" | "unknown";
@@ -88,16 +88,43 @@ function variantKey(rec: RomFileRecord): string {
   return `${rec.systemKey}/${rec.filename}`;
 }
 
-/** Resolve every rom cache key the config knows about to its label, kind, and
- *  role. Unset role is treated as `master` (backwards compatible). */
-function buildSourceMeta(cfg: ConfigFile): Map<string, SourceMeta> {
-  const map = new Map<string, SourceMeta>();
+/** Rom cache keys of every ROM-configured source, in config order. */
+function romConfiguredCacheKeys(cfg: ConfigFile): string[] {
+  const keys: string[] = [];
   for (const dev of cfg.devices) {
-    map.set(romDeviceCacheKey(dev.id), {
-      cacheKey: romDeviceCacheKey(dev.id),
+    if (dev.romsRootRelPath) keys.push(romDeviceCacheKey(dev.id));
+  }
+  for (const vm of cfg.virtualMounts) {
+    if (vm.romsRootRelPath) keys.push(romVirtualMountCacheKey(resolve(vm.path)));
+  }
+  return keys;
+}
+
+/** The cache key of the active library source: the configured pointer when it
+ *  still names a ROM-configured source, otherwise the sole configured source
+ *  (so single-library setups need no explicit pick), otherwise none. */
+export function effectiveLibraryKey(cfg: ConfigFile): string | undefined {
+  const keys = romConfiguredCacheKeys(cfg);
+  if (cfg.romLibrarySourceKey && keys.includes(cfg.romLibrarySourceKey)) {
+    return cfg.romLibrarySourceKey;
+  }
+  return keys.length === 1 ? keys[0] : undefined;
+}
+
+/** Resolve every rom cache key the config knows about to its label, kind, and
+ *  role. The source matching `libraryKey` is the library; all others are
+ *  destinations. */
+function buildSourceMeta(cfg: ConfigFile, libraryKey?: string): Map<string, SourceMeta> {
+  const map = new Map<string, SourceMeta>();
+  const role = (cacheKey: string): RomLibraryRole =>
+    cacheKey === libraryKey ? "library" : "destination";
+  for (const dev of cfg.devices) {
+    const key = romDeviceCacheKey(dev.id);
+    map.set(key, {
+      cacheKey: key,
       sourceKind: "device",
       sourceLabel: dev.nickname,
-      role: dev.romLibraryRole ?? "master",
+      role: role(key),
       configured: Boolean(dev.romsRootRelPath),
       romsRootRelPath: dev.romsRootRelPath,
     });
@@ -108,7 +135,7 @@ function buildSourceMeta(cfg: ConfigFile): Map<string, SourceMeta> {
       cacheKey: key,
       sourceKind: "virtualMount",
       sourceLabel: vm.label || vm.path,
-      role: vm.romLibraryRole ?? "master",
+      role: role(key),
       configured: Boolean(vm.romsRootRelPath),
       romsRootRelPath: vm.romsRootRelPath,
     });
@@ -125,28 +152,29 @@ export async function computeLibrary(
 ): Promise<ComputedLibrary> {
   const caches = injectedCaches ?? (await listAllRomCaches());
   const cacheByKey = new Map(caches.map((c) => [c.cacheKey, c]));
-  const sourceMeta = buildSourceMeta(cfg);
+  const libraryKey = effectiveLibraryKey(cfg);
+  const sourceMeta = buildSourceMeta(cfg, libraryKey);
 
-  // A removed/unknown cache (source deleted from config) is treated as master so
-  // its data still surfaces rather than vanishing silently.
+  // A cache whose source was removed from config is no longer a real source.
   function metaFor(cacheKey: string): SourceMeta {
     return (
       sourceMeta.get(cacheKey) ?? {
         cacheKey,
         sourceKind: "device",
         sourceLabel: "(removed source)",
-        role: "master",
+        role: "destination",
         configured: false,
       }
     );
   }
 
-  const masterCaches: RomLibraryCache[] = [];
-  const destCaches: RomLibraryCache[] = [];
-  for (const cache of caches) {
-    if (metaFor(cache.cacheKey).role === "destination") destCaches.push(cache);
-    else masterCaches.push(cache);
-  }
+  // The library source provides the canonical games + variants. Destinations are
+  // the other ROM-configured sources. Removed/unknown caches are ignored.
+  const libraryCaches = caches.filter((c) => c.cacheKey === libraryKey);
+  const destCaches = caches.filter((c) => {
+    const m = sourceMeta.get(c.cacheKey);
+    return m?.configured && m.role === "destination";
+  });
 
   const metaByGameKey = new Map(cfg.gameMeta.map((m) => [m.gameKey, m]));
   const prefByGameAndDest = new Map<string, string | undefined>();
@@ -154,14 +182,14 @@ export async function computeLibrary(
     prefByGameAndDest.set(`${p.gameKey}::${p.sourceCacheKey}`, p.preferredVariantKey);
   }
 
-  // Fold master records into games → variants.
+  // Fold library records into games → variants.
   interface Building {
     game: ComputedGame;
     variantByKey: Map<string, ComputedVariant>;
   }
   const building = new Map<string, Building>();
 
-  for (const cache of masterCaches) {
+  for (const cache of libraryCaches) {
     const label = metaFor(cache.cacheKey).sourceLabel;
     for (const rec of cache.files) {
       let b = building.get(rec.gameKey);
@@ -200,14 +228,14 @@ export async function computeLibrary(
           flags: rec.flags,
           extension: rec.extension,
           isDefault: false,
-          masterSources: [{ cacheKey: cache.cacheKey, sourceLabel: label }],
+          librarySources: [{ cacheKey: cache.cacheKey, sourceLabel: label }],
         };
         b.variantByKey.set(key, variant);
         b.game.variants.push(variant);
         b.game.variantCount++;
         b.game.totalSizeBytes += rec.sizeBytes;
-      } else if (!variant.masterSources.some((s) => s.cacheKey === cache.cacheKey)) {
-        variant.masterSources.push({ cacheKey: cache.cacheKey, sourceLabel: label });
+      } else if (!variant.librarySources.some((s) => s.cacheKey === cache.cacheKey)) {
+        variant.librarySources.push({ cacheKey: cache.cacheKey, sourceLabel: label });
       }
     }
   }
