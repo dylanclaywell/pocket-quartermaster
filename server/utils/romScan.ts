@@ -316,6 +316,10 @@ async function collectInto(
     return;
   }
   for (const e of entries) {
+    // Skip dotfiles: macOS AppleDouble twins ("._Game.gba") share the ROM's
+    // extension and would otherwise collapse into the real game as a phantom
+    // variant, and ".DS_Store"/".Trashes" etc. are never ROMs.
+    if (e.name.startsWith(".")) continue;
     const abs = join(dirAbs, e.name);
     const rel = `${dirRel}/${e.name}`;
     if (e.isDirectory()) {

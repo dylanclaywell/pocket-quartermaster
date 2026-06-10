@@ -56,8 +56,6 @@ const metadata = ref<MetadataSummary | null>(null);
 const loading = ref(true);
 const planning = ref(false);
 const running = ref(false);
-const syncingNames = ref(false);
-const nameSyncNote = ref<string | null>(null);
 const error = ref<string | null>(null);
 
 const search = ref("");
@@ -180,7 +178,6 @@ async function loadPlan() {
   error.value = null;
   results.value = [];
   metadata.value = null;
-  nameSyncNote.value = null;
   try {
     const res = await $fetch<{ plan: { items: PlanItem[] } }>(
       "/api/roms/transfer/plan",
@@ -225,7 +222,6 @@ async function run() {
   if (selected.value.size === 0) return;
   running.value = true;
   error.value = null;
-  nameSyncNote.value = null;
   try {
     const res = await $fetch<{
       results: ItemResult[];
@@ -250,34 +246,6 @@ async function run() {
       (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
   } finally {
     running.value = false;
-  }
-}
-
-// Push clean display names to the destination's launcher without copying any
-// ROMs — for when names were edited after the games were already transferred.
-async function syncNames() {
-  if (!destCacheKey.value) return;
-  syncingNames.value = true;
-  error.value = null;
-  nameSyncNote.value = null;
-  metadata.value = null;
-  try {
-    const res = await $fetch<{
-      kind: "es-de" | "muos";
-      entryCount: number;
-      results: MetadataResult[];
-    }>("/api/roms/metadata/sync", {
-      method: "POST",
-      body: { destCacheKey: destCacheKey.value },
-    });
-    metadata.value = { kind: res.kind, results: res.results };
-    if (res.entryCount === 0)
-      nameSyncNote.value = "No games are installed on this device yet.";
-  } catch (e) {
-    error.value =
-      (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
-  } finally {
-    syncingNames.value = false;
   }
 }
 
@@ -337,19 +305,6 @@ function itemState(i: PlanItem): { text: string; cls: string } {
             aria-label="Destination device"
             @update:model-value="onSelectDest"
           />
-        </div>
-
-        <div v-if="destCacheKey" class="flex flex-wrap items-center gap-2">
-          <button
-            class="btn-ghost text-sm"
-            :disabled="syncingNames || running"
-            title="Push edited display names to this device's launcher without copying ROMs"
-            @click="syncNames"
-          >
-            <Spinner v-if="syncingNames" size="sm" />
-            <span>{{ syncingNames ? "Syncing names…" : "Sync names to device" }}</span>
-          </button>
-          <span v-if="nameSyncNote" class="text-xs text-fg-dim">{{ nameSyncNote }}</span>
         </div>
 
         <div v-if="metadataSummary" class="card flex flex-col gap-1 text-sm">

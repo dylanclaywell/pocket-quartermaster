@@ -34,11 +34,12 @@ export interface DeviceIdentity {
       transferred games show clean display names. Unset = none. */
   launcherKind?: LauncherKind;
   /** Forward-slash path, relative to the mount root, of the ES-DE application
-      data directory's `gamelists` folder (e.g. `ES-DE/gamelists`). ES-DE keeps
-      gamelists here, separate from the ROM folders — on Android the whole
-      `ES-DE/` folder must be relocated onto the SD for this to be reachable.
-      Required for the ES-DE name writer; ignored for other launchers. */
-  esDeGamelistsRelPath?: string;
+      data directory (the `ES-DE/` folder). ES-DE's normalized layout lives
+      under it — gamelists at `gamelists/<system>/` and scraped art at
+      `downloaded_media/<system>/`. On Android the whole `ES-DE/` folder must be
+      relocated onto the SD for this to be reachable. Required for the ES-DE
+      name/art features; ignored for other launchers. */
+  esDeRootRelPath?: string;
 }
 
 /** Frontend running on a destination, selecting which launcher-metadata file
@@ -112,9 +113,10 @@ export interface VirtualMount {
   /** Launcher this mount's target device runs, controlling which metadata file
       is written so transferred games show clean display names. Unset = none. */
   launcherKind?: LauncherKind;
-  /** Forward-slash path, relative to this mount, of the ES-DE `gamelists`
-      folder (e.g. `ES-DE/gamelists`). Required for the ES-DE name writer. */
-  esDeGamelistsRelPath?: string;
+  /** Forward-slash path, relative to this mount, of the ES-DE application data
+      directory (the `ES-DE/` folder). Gamelists and downloaded_media live under
+      it. Required for the ES-DE name/art features. */
+  esDeRootRelPath?: string;
 }
 
 /** User-editable, persisted per-game data. Keyed by `gameKey`

@@ -1,9 +1,11 @@
 import { loadConfig } from "../../utils/storage";
 import { computeLibrary } from "../../utils/romLibrary";
+import { safeBaseName, thumbnailBaseSet } from "../../utils/thumbnails";
 
 export default defineEventHandler(async () => {
   const cfg = await loadConfig();
   const { games, sources } = await computeLibrary(cfg);
+  const thumbs = await thumbnailBaseSet();
 
   // List view needs only headline fields; variants + the destination matrix are
   // served per-game by /api/roms/games/[gameKey].
@@ -23,6 +25,7 @@ export default defineEventHandler(async () => {
       destinationCount: g.destinations.length,
       destinationsInstalled,
       hasMismatch,
+      hasThumbnail: thumbs.has(safeBaseName(g.gameKey)),
     };
   });
 

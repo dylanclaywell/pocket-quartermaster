@@ -1,5 +1,6 @@
 import { loadConfig } from "../../../utils/storage";
 import { computeLibrary } from "../../../utils/romLibrary";
+import { hasThumbnail } from "../../../utils/thumbnails";
 
 export default defineEventHandler(async (event) => {
   const gameKey = getRouterParam(event, "gameKey");
@@ -11,5 +12,5 @@ export default defineEventHandler(async (event) => {
   const game = games.find((g) => g.gameKey === decoded);
   if (!game) throw createError({ statusCode: 404, statusMessage: "game not found" });
 
-  return { game };
+  return { game: { ...game, hasThumbnail: await hasThumbnail(decoded) } };
 });

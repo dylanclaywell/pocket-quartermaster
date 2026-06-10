@@ -13,7 +13,7 @@ interface DeviceData {
   romsRootRelPath?: string;
   romsCacheKey: string;
   launcherKind?: "es-de" | "muos";
-  esDeGamelistsRelPath?: string;
+  esDeRootRelPath?: string;
 }
 interface SlotRef {
   profileName: string;
@@ -208,32 +208,87 @@ async function applyLauncher(value: string) {
   }
 }
 
-// ES-DE keeps its gamelists in its own data folder, separate from the ROMs —
-// the user points us at <mount>/ES-DE/gamelists so name writes land where ES-DE
-// actually reads them.
-const editingGamelists = ref(false);
-const gamelistsBusy = ref(false);
+// ES-DE keeps its data in its own folder, separate from the ROMs. The user
+// points us at <mount>/ES-DE; gamelists and downloaded_media live under it, so
+// name writes and art land where ES-DE reads them.
+const editingEsDeRoot = ref(false);
+const esDeRootBusy = ref(false);
 
-function openGamelistsEditor() {
+function openEsDeRootEditor() {
   if (!device.value?.mounted) return;
-  editingGamelists.value = true;
+  editingEsDeRoot.value = true;
   romsError.value = null;
 }
 
-async function applyGamelistsDir(value: string | null) {
-  gamelistsBusy.value = true;
+async function applyEsDeRoot(value: string | null) {
+  esDeRootBusy.value = true;
   romsError.value = null;
   try {
     await $fetch(`/api/devices/${id.value}`, {
       method: "PATCH",
-      body: { esDeGamelistsRelPath: value },
+      body: { esDeRootRelPath: value },
     });
-    editingGamelists.value = false;
+    editingEsDeRoot.value = false;
     await refresh();
   } catch (e) {
     romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
   } finally {
-    gamelistsBusy.value = false;
+    esDeRootBusy.value = false;
+  }
+}
+
+// Launcher metadata actions for this device. Names push clean display names
+// into the launcher; art import pulls the launcher's scraped box art into the
+// server cache so it shows app-wide.
+const syncingNames = ref(false);
+const harvestingArt = ref(false);
+const launcherNote = ref<string | null>(null);
+
+async function syncNames() {
+  if (!device.value) return;
+  syncingNames.value = true;
+  romsError.value = null;
+  launcherNote.value = null;
+  try {
+    const res = await $fetch<{ entryCount: number; results: { written: number }[] }>(
+      "/api/roms/metadata/sync",
+      { method: "POST", body: { destCacheKey: device.value.romsCacheKey } },
+    );
+    const written = res.results.reduce((s, r) => s + r.written, 0);
+    launcherNote.value =
+      res.entryCount === 0
+        ? "No games installed on this device yet."
+        : `Wrote ${written} name${written === 1 ? "" : "s"} to the launcher.`;
+  } catch (e) {
+    romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    syncingNames.value = false;
+  }
+}
+
+async function harvestArt() {
+  if (!device.value) return;
+  harvestingArt.value = true;
+  romsError.value = null;
+  launcherNote.value = null;
+  try {
+    const res = await $fetch<{
+      imported: number;
+      skippedExisting: number;
+      unmatched: number;
+      reason?: string;
+    }>("/api/roms/art/harvest", {
+      method: "POST",
+      body: { destCacheKey: device.value.romsCacheKey },
+    });
+    launcherNote.value = res.reason
+      ? res.reason
+      : `Imported ${res.imported} cover${res.imported === 1 ? "" : "s"} ` +
+        `(${res.skippedExisting} already had art, ${res.unmatched} unmatched).`;
+  } catch (e) {
+    romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    harvestingArt.value = false;
   }
 }
 
@@ -424,9 +479,9 @@ async function runRomsScan() {
           class="flex flex-col gap-2 rounded-xl bg-surface-2 p-3"
         >
           <div class="flex items-center justify-between gap-2">
-            <span class="label">ES-DE gamelists folder</span>
+            <span class="label">ES-DE folder</span>
             <span
-              v-if="device.esDeGamelistsRelPath"
+              v-if="device.esDeRootRelPath"
               class="pill bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok"
               >set</span
             >
@@ -434,40 +489,74 @@ async function runRomsScan() {
           </div>
           <p class="break-all text-sm text-fg-dim">
             {{
-              device.esDeGamelistsRelPath
-                ? `/${device.esDeGamelistsRelPath}`
-                : "Point to ES-DE's gamelists folder (usually ES-DE/gamelists) so transferred games show clean names."
+              device.esDeRootRelPath
+                ? `/${device.esDeRootRelPath}`
+                : "Point to ES-DE's data folder (usually ES-DE at the SD root). Gamelists and scraped art live under it, so we can write clean names and sync box art."
             }}
           </p>
 
-          <div v-if="editingGamelists" class="flex flex-col gap-2">
+          <div v-if="editingEsDeRoot" class="flex flex-col gap-2">
             <FolderPicker
               v-if="device.currentMountPath"
               :mount-path="device.currentMountPath"
-              :initial-rel-path="device.esDeGamelistsRelPath"
+              :initial-rel-path="device.esDeRootRelPath"
               commit-label="Use this folder"
-              @select="applyGamelistsDir($event)"
-              @cancel="editingGamelists = false"
+              @select="applyEsDeRoot($event)"
+              @cancel="editingEsDeRoot = false"
             />
           </div>
 
-          <div v-if="!editingGamelists" class="flex flex-wrap gap-2">
+          <div v-if="!editingEsDeRoot" class="flex flex-wrap gap-2">
             <button
               class="btn-secondary text-sm"
-              :disabled="!device.mounted || gamelistsBusy"
+              :disabled="!device.mounted || esDeRootBusy"
               :title="device.mounted ? '' : 'Mount this device to browse'"
-              @click="openGamelistsEditor"
+              @click="openEsDeRootEditor"
             >
-              {{ device.esDeGamelistsRelPath ? "Change folder" : "Set gamelists folder" }}
+              {{ device.esDeRootRelPath ? "Change folder" : "Set ES-DE folder" }}
             </button>
             <button
-              v-if="device.esDeGamelistsRelPath"
+              v-if="device.esDeRootRelPath"
               class="btn-ghost text-sm"
-              :disabled="gamelistsBusy"
-              @click="applyGamelistsDir(null)"
+              :disabled="esDeRootBusy"
+              @click="applyEsDeRoot(null)"
             >
               Clear
             </button>
+          </div>
+
+          <div
+            v-if="device.esDeRootRelPath && !editingEsDeRoot"
+            class="flex flex-col gap-2 border-t border-border pt-2"
+          >
+            <span class="label">Names &amp; art</span>
+            <div class="flex flex-wrap gap-2">
+              <button
+                class="btn-secondary text-sm"
+                :disabled="!device.mounted || syncingNames || harvestingArt"
+                :title="device.mounted ? '' : 'Mount this device first'"
+                @click="syncNames"
+              >
+                <Spinner v-if="syncingNames" size="sm" />
+                <span>{{ syncingNames ? "Syncing…" : "Sync names to launcher" }}</span>
+              </button>
+              <button
+                class="btn-secondary text-sm"
+                :disabled="!device.mounted || harvestingArt || syncingNames"
+                :title="device.mounted ? '' : 'Mount this device first'"
+                @click="harvestArt"
+              >
+                <Spinner v-if="harvestingArt" size="sm" />
+                <span>{{ harvestingArt ? "Importing…" : "Import art to app" }}</span>
+              </button>
+            </div>
+            <p class="text-xs text-fg-dim">
+              <span class="font-medium text-fg">Sync names</span> writes clean display names
+              for games installed here.
+              <span class="font-medium text-fg">Import art</span> pulls ES-DE's scraped box art
+              into the app so it shows in activity and the library.
+            </p>
+            <p v-if="launcherNote" class="text-xs text-ok">{{ launcherNote }}</p>
           </div>
 
           <details class="text-xs text-fg-dim">
@@ -493,8 +582,8 @@ async function runRomsScan() {
                 ROM directory at your existing SD ROMs folder.
               </li>
               <li>
-                Finish setup, then set the folder above to
-                <span class="font-mono">ES-DE/gamelists</span> on the SD.
+                Finish setup, then set the folder above to the
+                <span class="font-mono">ES-DE</span> folder on the SD.
               </li>
             </ol>
           </details>

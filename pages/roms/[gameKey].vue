@@ -39,6 +39,7 @@ interface ComputedGame {
   defaultVariantKey?: string;
   saveProfileName?: string;
   notes?: string;
+  hasThumbnail?: boolean;
   variants: ComputedVariant[];
   destinations: DestinationState[];
 }
@@ -203,7 +204,7 @@ function statusPill(status: DestinationState["status"]): { text: string; cls: st
           :style="{ background: fallbackBackground }"
         >
           <img
-            v-if="activity?.hasThumbnail"
+            v-if="game.hasThumbnail"
             :src="thumbnailUrl"
             :alt="game.displayName"
             class="absolute inset-0 size-full object-cover"

@@ -17,8 +17,9 @@ export interface SourceRoot {
   /** Absolute path of the bare mount/volume this source lives on, when mounted.
       Launcher metadata (e.g. ES-DE gamelists) lives off this, not off absRoot. */
   mountPath?: string;
-  /** Forward-slash ES-DE gamelists path relative to mountPath, if configured. */
-  esDeGamelistsRelPath?: string;
+  /** Forward-slash ES-DE root path (the `ES-DE/` folder) relative to mountPath,
+      if configured. Gamelists and downloaded_media live under it. */
+  esDeRootRelPath?: string;
 }
 
 /** Resolve every configured ROM source to its current absolute root path.
@@ -43,7 +44,7 @@ export async function resolveRomSourceRoots(cfg: ConfigFile): Promise<Map<string
       absRoot: mountPath ? join(mountPath, dev.romsRootRelPath) : undefined,
       mounted: Boolean(mountPath),
       mountPath,
-      esDeGamelistsRelPath: dev.esDeGamelistsRelPath,
+      esDeRootRelPath: dev.esDeRootRelPath,
     });
   }
   for (const vm of cfg.virtualMounts) {
@@ -57,7 +58,7 @@ export async function resolveRomSourceRoots(cfg: ConfigFile): Promise<Map<string
       absRoot: exists ? join(absVm, vm.romsRootRelPath) : undefined,
       mounted: exists,
       mountPath: exists ? absVm : undefined,
-      esDeGamelistsRelPath: vm.esDeGamelistsRelPath,
+      esDeRootRelPath: vm.esDeRootRelPath,
     });
   }
   return roots;

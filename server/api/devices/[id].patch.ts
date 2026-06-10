@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
     retroarchActivityDir?: string | null;
     romsRootRelPath?: string | null;
     launcherKind?: string | null;
-    esDeGamelistsRelPath?: string | null;
+    esDeRootRelPath?: string | null;
   }>(event);
 
   const cfg = await loadConfig();
@@ -81,17 +81,17 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  if (body && "esDeGamelistsRelPath" in body) {
-    if (body.esDeGamelistsRelPath === null || body.esDeGamelistsRelPath === "") {
-      delete dev.esDeGamelistsRelPath;
-    } else if (typeof body.esDeGamelistsRelPath === "string") {
-      const trimmed = body.esDeGamelistsRelPath.trim();
-      dev.esDeGamelistsRelPath = trimmed ? normalizeRelPath(trimmed) : undefined;
-      if (!dev.esDeGamelistsRelPath) delete dev.esDeGamelistsRelPath;
+  if (body && "esDeRootRelPath" in body) {
+    if (body.esDeRootRelPath === null || body.esDeRootRelPath === "") {
+      delete dev.esDeRootRelPath;
+    } else if (typeof body.esDeRootRelPath === "string") {
+      const trimmed = body.esDeRootRelPath.trim();
+      dev.esDeRootRelPath = trimmed ? normalizeRelPath(trimmed) : undefined;
+      if (!dev.esDeRootRelPath) delete dev.esDeRootRelPath;
     } else {
       throw createError({
         statusCode: 400,
-        statusMessage: "esDeGamelistsRelPath must be a string or null",
+        statusMessage: "esDeRootRelPath must be a string or null",
       });
     }
   }

@@ -24,20 +24,30 @@ export interface MetadataWriteResult {
   error?: string;
 }
 
+/** Absolute path of a subfolder inside a destination's ES-DE data directory
+ *  (e.g. "gamelists", "downloaded_media"), or undefined when the destination
+ *  isn't mounted or its ES-DE folder isn't set. */
+export function esDeSubdir(
+  dest: { mountPath?: string; esDeRootRelPath?: string },
+  ...sub: string[]
+): string | undefined {
+  if (!dest.mountPath || !dest.esDeRootRelPath) return undefined;
+  return join(dest.mountPath, dest.esDeRootRelPath.split("/").join(sep), ...sub);
+}
+
 /** Resolve the on-disk root a launcher's metadata should be written under for a
  *  destination. ES-DE keeps gamelists in its own data dir (not the ROM tree),
- *  so it needs the configured gamelists path; other launchers write off the
- *  mount root. Returns a `reason` instead of a `root` when not writable yet. */
+ *  under `<ES-DE root>/gamelists`; other launchers write off the mount root.
+ *  Returns a `reason` instead of a `root` when not writable yet. */
 export function metadataTargetRoot(
   kind: LauncherKind,
-  dest: { mountPath?: string; esDeGamelistsRelPath?: string },
+  dest: { mountPath?: string; esDeRootRelPath?: string },
 ): { root?: string; reason?: string } {
   if (!dest.mountPath) return { reason: "destination is not mounted" };
   if (kind === "es-de") {
-    if (!dest.esDeGamelistsRelPath) {
-      return { reason: "ES-DE gamelists folder is not set on this destination" };
-    }
-    return { root: join(dest.mountPath, dest.esDeGamelistsRelPath.split("/").join(sep)) };
+    const root = esDeSubdir(dest, "gamelists");
+    if (!root) return { reason: "ES-DE folder is not set on this destination" };
+    return { root };
   }
   // muOS (future) writes under MUOS/info relative to the mount root.
   return { root: dest.mountPath };

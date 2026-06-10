@@ -69,6 +69,26 @@ export async function hasThumbnail(normalizedName: string): Promise<boolean> {
   return (await findThumbnailPath(normalizedName)) !== null;
 }
 
+/** All cached thumbnail base names (lower-cased, no extension), read in one
+ *  directory pass. Use this to test many games at once — calling hasThumbnail()
+ *  per game re-reads the whole directory each time (O(n²) on large libraries). */
+export async function thumbnailBaseSet(): Promise<Set<string>> {
+  const set = new Set<string>();
+  if (!existsSync(THUMBNAILS_DIR)) return set;
+  let names: string[];
+  try {
+    names = await readdir(THUMBNAILS_DIR);
+  } catch {
+    return set;
+  }
+  for (const name of names) {
+    const ext = extname(name).toLowerCase();
+    if (!SUPPORTED_EXTENSIONS.includes(ext as (typeof SUPPORTED_EXTENSIONS)[number])) continue;
+    set.add(name.slice(0, name.length - ext.length).toLowerCase());
+  }
+  return set;
+}
+
 /** Save raw image bytes for the given normalizedName. If a thumbnail already
  *  exists under a different extension, remove the old one first. */
 export async function saveThumbnail(

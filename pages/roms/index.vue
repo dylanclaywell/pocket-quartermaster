@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatBytes, formatRelativeIso } from "~/composables/useFormat";
+import { systemFallbackBackground } from "~/composables/useGameVisuals";
 
 interface LibraryGame {
   gameKey: string;
@@ -12,6 +13,7 @@ interface LibraryGame {
   destinationCount: number;
   destinationsInstalled: number;
   hasMismatch: boolean;
+  hasThumbnail: boolean;
 }
 interface LibrarySummary {
   cacheKey: string;
@@ -395,6 +397,19 @@ onMounted(loadCached);
                 :to="`/roms/${encodeURIComponent(g.gameKey)}`"
                 class="row-button"
               >
+                <div
+                  class="relative size-10 shrink-0 overflow-hidden rounded-[22%] ring-1 ring-border"
+                  :style="{ background: systemFallbackBackground(g.system) }"
+                >
+                  <img
+                    v-if="g.hasThumbnail"
+                    :src="`/api/thumbnails/${encodeURIComponent(g.gameKey)}`"
+                    :alt="g.displayName"
+                    class="absolute inset-0 size-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
                 <div class="flex min-w-0 flex-1 flex-col">
                   <span class="truncate font-semibold">{{
                     g.displayName
