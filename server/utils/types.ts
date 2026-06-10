@@ -30,7 +30,13 @@ export interface DeviceIdentity {
       (e.g. `gba/`, `snes/`). When set, the ROM-management feature treats this
       device as a library and scans it. Parallel to `retroarchActivityDir`. */
   romsRootRelPath?: string;
+  /** Whether this source is the canonical library (`master`) or a transfer
+      target (`destination`). Unset is treated as `master` for backwards
+      compatibility with libraries configured before roles existed. */
+  romLibraryRole?: RomLibraryRole;
 }
+
+export type RomLibraryRole = "master" | "destination";
 
 /** A single device slot inside a profile. A profile holds N of these and the
     user picks source + destination explicitly at transfer time. */
@@ -89,13 +95,47 @@ export interface VirtualMount {
       whose immediate subfolders are per-system ROM folders. When set, the
       ROM-management feature treats this mount as a library and scans it. */
   romsRootRelPath?: string;
+  /** Library role for this mount. Unset = `master` (backwards compatible). */
+  romLibraryRole?: RomLibraryRole;
+}
+
+/** User-editable, persisted per-game data. Keyed by `gameKey`
+    (the normalized game name) — a deterministic, scan-stable identity, so no
+    entity reconciler is needed when the library is re-scanned. */
+export interface GameMeta {
+  /** normalizeGameName() of the game. Stable across rescans. */
+  gameKey: string;
+  /** Overrides the filename-derived display name shown in the UI. */
+  displayNameOverride?: string;
+  /** Variant chosen as the game-level default, by variant key
+      (`${systemKey}/${filename}`). Falls back to the sole variant when unset. */
+  defaultVariantKey?: string;
+  /** Links this game to an existing save Profile, by profile name. */
+  saveProfileName?: string;
+  /** Free-form notes. */
+  notes?: string;
+}
+
+/** Per-(game, destination) preferred variant. The destination is keyed by its
+    ROM cache key (`romdev-…` / `romvm-…`) so it unifies devices and virtual
+    mounts under one stable identifier. */
+export interface DeviceGamePreference {
+  gameKey: string;
+  /** ROM cache key of the destination source. */
+  sourceCacheKey: string;
+  /** Variant key the destination should hold. Unset = inherit game default. */
+  preferredVariantKey?: string;
 }
 
 export interface ConfigFile {
-  version: 2;
+  version: 3;
   devices: DeviceIdentity[];
   profiles: Profile[];
   virtualMounts: VirtualMount[];
+  /** Persisted per-game user data, keyed by gameKey. */
+  gameMeta: GameMeta[];
+  /** Per-(game, destination) preferred-variant rows. */
+  deviceGamePreferences: DeviceGamePreference[];
 }
 
 export const MARKER_FILENAME = ".pqm-device-id.json";

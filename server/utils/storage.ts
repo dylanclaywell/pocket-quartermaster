@@ -11,10 +11,12 @@ export const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 export const BACKUP_DIR = join(paths.data, "backups");
 
 const EMPTY_CONFIG: ConfigFile = {
-  version: 2,
+  version: 3,
   devices: [],
   profiles: [],
   virtualMounts: [],
+  gameMeta: [],
+  deviceGamePreferences: [],
 };
 
 export async function loadConfig(): Promise<ConfigFile> {
@@ -35,9 +37,18 @@ export async function loadConfig(): Promise<ConfigFile> {
     migrated = true;
     return migrateProfile(p as LegacyProfileV1);
   });
-  if (parsed.version !== 2) {
-    parsed.version = 2;
-    migrated = migrated || true;
+  // v3 added ROM-management arrays. Initialize them when absent.
+  if (!Array.isArray(parsed.gameMeta)) {
+    parsed.gameMeta = [];
+    migrated = true;
+  }
+  if (!Array.isArray(parsed.deviceGamePreferences)) {
+    parsed.deviceGamePreferences = [];
+    migrated = true;
+  }
+  if (parsed.version !== 3) {
+    parsed.version = 3;
+    migrated = true;
   }
   const cfg = parsed as ConfigFile;
   // Persist the migration so slot IDs are stable across requests. Otherwise

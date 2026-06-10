@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
     nickname?: string;
     retroarchActivityDir?: string | null;
     romsRootRelPath?: string | null;
+    romLibraryRole?: "master" | "destination" | null;
   }>(event);
 
   const cfg = await loadConfig();
@@ -59,6 +60,19 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: "romsRootRelPath must be a string or null",
+      });
+    }
+  }
+
+  if (body && "romLibraryRole" in body) {
+    if (body.romLibraryRole === null) {
+      delete dev.romLibraryRole;
+    } else if (body.romLibraryRole === "master" || body.romLibraryRole === "destination") {
+      dev.romLibraryRole = body.romLibraryRole;
+    } else {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "romLibraryRole must be 'master', 'destination', or null",
       });
     }
   }

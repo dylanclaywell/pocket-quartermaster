@@ -1,25 +1,6 @@
 <script setup lang="ts">
 import { formatBytes, formatRelativeIso } from "~/composables/useFormat";
 
-interface VariantSource {
-  cacheKey: string;
-  sourceKind: "device" | "virtualMount";
-  sourceLabel: string;
-}
-interface LibraryVariant {
-  key: string;
-  filename: string;
-  relPath: string;
-  systemKey: string;
-  system: string;
-  sizeBytes: number;
-  regionTags: string[];
-  languages: string[];
-  revision?: string;
-  flags: string[];
-  extension: string;
-  sources: VariantSource[];
-}
 interface LibraryGame {
   gameKey: string;
   displayName: string;
@@ -27,12 +8,16 @@ interface LibraryGame {
   system: string;
   variantCount: number;
   totalSizeBytes: number;
-  variants: LibraryVariant[];
+  saveProfileName?: string;
+  destinationCount: number;
+  destinationsInstalled: number;
+  hasMismatch: boolean;
 }
 interface LibrarySummary {
   cacheKey: string;
   sourceKind: "device" | "virtualMount";
   sourceLabel: string;
+  role: "master" | "destination";
   configured: boolean;
   cacheExists: boolean;
   lastScannedAt?: string;
@@ -63,7 +48,6 @@ const initialLoading = ref(true);
 const scanning = ref(false);
 const scanResults = ref<ScanResultRow[]>([]);
 const search = ref("");
-const expandedGame = ref<string | null>(null);
 
 const configuredCount = computed(() => libraries.value.filter((l) => l.configured).length);
 
@@ -127,10 +111,6 @@ async function runScan(cacheKey?: string) {
   }
 }
 
-function toggleGame(key: string) {
-  expandedGame.value = expandedGame.value === key ? null : key;
-}
-
 onMounted(loadCached);
 </script>
 
@@ -180,7 +160,19 @@ onMounted(loadCached);
           class="card flex items-center justify-between gap-3"
         >
           <div class="flex min-w-0 flex-1 flex-col">
-            <span class="truncate font-semibold">{{ lib.sourceLabel }}</span>
+            <span class="flex items-center gap-2">
+              <span class="truncate font-semibold">{{ lib.sourceLabel }}</span>
+              <span
+                class="pill shrink-0"
+                :class="
+                  lib.role === 'destination'
+                    ? 'bg-surface-2 text-fg-dim'
+                    : 'bg-[color-mix(in_oklab,var(--color-accent,var(--color-ok))_22%,transparent)] text-fg'
+                "
+              >
+                {{ lib.role }}
+              </span>
+            </span>
             <span class="truncate text-xs text-fg-dim">
               <span v-if="lib.romsRootRelPath" class="font-mono">/{{ lib.romsRootRelPath }}</span>
               <span v-else>not configured</span>
@@ -231,39 +223,26 @@ onMounted(loadCached);
         <p class="mt-2 text-xs">Configure a library folder and press “Scan libraries”.</p>
       </div>
       <ul v-else class="flex flex-col gap-2">
-        <li v-for="g in filteredGames" :key="g.gameKey" class="card flex flex-col gap-2">
-          <button
-            class="flex items-center justify-between gap-3 text-left"
-            @click="toggleGame(g.gameKey)"
-          >
+        <li v-for="g in filteredGames" :key="g.gameKey">
+          <NuxtLink :to="`/roms/${encodeURIComponent(g.gameKey)}`" class="row-button">
             <div class="flex min-w-0 flex-1 flex-col">
               <span class="truncate font-semibold">{{ g.displayName }}</span>
               <span class="truncate text-xs text-fg-dim">
                 {{ g.system }} · {{ g.variantCount }} variant{{ g.variantCount === 1 ? "" : "s" }}
                 · {{ formatBytes(g.totalSizeBytes) }}
+                <template v-if="g.destinationCount > 0">
+                  · on {{ g.destinationsInstalled }}/{{ g.destinationCount }} devices
+                </template>
               </span>
             </div>
-            <span aria-hidden="true" class="text-fg-dim">
-              {{ expandedGame === g.gameKey ? "▾" : "›" }}
-            </span>
-          </button>
-
-          <ul v-if="expandedGame === g.gameKey" class="flex flex-col gap-2 border-t border-border pt-2">
-            <li v-for="v in g.variants" :key="v.key" class="flex flex-col gap-1">
-              <span class="break-all font-mono text-xs">{{ v.filename }}</span>
-              <span class="flex flex-wrap items-center gap-1 text-xs text-fg-dim">
-                <span v-for="r in v.regionTags" :key="r" class="pill bg-surface-2">{{ r }}</span>
-                <span v-if="v.revision" class="pill bg-surface-2">{{ v.revision }}</span>
-                <span v-if="v.languages.length" class="pill bg-surface-2">
-                  {{ v.languages.join(", ") }}
-                </span>
-                <span>· {{ formatBytes(v.sizeBytes) }}</span>
-              </span>
-              <span class="text-xs text-fg-dim">
-                from: {{ v.sources.map((s) => s.sourceLabel).join(", ") }}
-              </span>
-            </li>
-          </ul>
+            <span
+              v-if="g.hasMismatch"
+              class="pill shrink-0 bg-[color-mix(in_oklab,var(--color-warn)_25%,transparent)] text-warn"
+              title="A device has a variant installed that differs from its preferred variant"
+              >⚠</span
+            >
+            <span aria-hidden="true" class="text-fg-dim">›</span>
+          </NuxtLink>
         </li>
         <li
           v-if="filteredGames.length === 0"
