@@ -25,6 +25,11 @@ export interface DeviceIdentity {
       `playlists/logs` directory containing per-core `.lrtl` files. When set,
       the activity feature scans this directory for playtime data. */
   retroarchActivityDir?: string;
+  /** Forward-slash path, relative to the mount root, of the ROM library root —
+      the directory whose immediate subfolders are per-system ROM folders
+      (e.g. `gba/`, `snes/`). When set, the ROM-management feature treats this
+      device as a library and scans it. Parallel to `retroarchActivityDir`. */
+  romsRootRelPath?: string;
 }
 
 /** A single device slot inside a profile. A profile holds N of these and the
@@ -80,6 +85,10 @@ export interface VirtualMount {
   /** Forward-slash path, relative to this mount, of the RetroArch
       `playlists/logs` directory containing per-core `.lrtl` files. */
   retroarchActivityDir?: string;
+  /** Forward-slash path, relative to this mount, of the ROM library root
+      whose immediate subfolders are per-system ROM folders. When set, the
+      ROM-management feature treats this mount as a library and scans it. */
+  romsRootRelPath?: string;
 }
 
 export interface ConfigFile {

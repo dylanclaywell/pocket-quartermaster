@@ -3,6 +3,7 @@ import { readMarker } from "../../utils/deviceId";
 import { findDevice } from "../../utils/profiles";
 import { loadConfig } from "../../utils/storage";
 import { deviceCacheKey } from "../../utils/activityCache";
+import { romDeviceCacheKey } from "../../utils/romLibraryCache";
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id");
@@ -51,6 +52,7 @@ export default defineEventHandler(async (event) => {
       mounted: Boolean(currentMountPath),
       currentMountPath,
       activityCacheKey: deviceCacheKey(dev.id),
+      romsCacheKey: romDeviceCacheKey(dev.id),
     },
     slots,
   };

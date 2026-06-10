@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { loadConfig } from "../../utils/storage";
 import { virtualMountCacheKey } from "../../utils/activityCache";
+import { romVirtualMountCacheKey } from "../../utils/romLibraryCache";
 
 export default defineEventHandler(async () => {
   const cfg = await loadConfig();
@@ -24,6 +25,7 @@ export default defineEventHandler(async () => {
         exists,
         isDirectory,
         activityCacheKey: virtualMountCacheKey(resolve(v.path)),
+        romsCacheKey: romVirtualMountCacheKey(resolve(v.path)),
       };
     }),
   );

@@ -7,3 +7,4 @@ dist/
 .julie
 .nuxt/
 .output/
+.codegraph/

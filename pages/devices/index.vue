@@ -28,6 +28,8 @@ interface VirtualMount {
   isDirectory: boolean;
   retroarchActivityDir?: string;
   activityCacheKey: string;
+  romsRootRelPath?: string;
+  romsCacheKey: string;
 }
 interface ConfigInfo {
   configPath: string;
@@ -63,6 +65,13 @@ const addError = ref<string | null>(null);
 const editingVmPath = ref<string | null>(null);
 const vmActivityBusy = ref(false);
 const vmActivityError = ref<string | null>(null);
+
+// Per-virtual-mount inline ROM-library editor state, parallel to the activity one.
+const editingVmRomsPath = ref<string | null>(null);
+const vmRomsBusy = ref(false);
+const vmRomsError = ref<string | null>(null);
+const vmRomsScanningPath = ref<string | null>(null);
+const vmRomsScanMsg = ref<string | null>(null);
 
 async function refresh() {
   busy.value = true;
@@ -190,6 +199,52 @@ async function applyVmActivityDir(v: VirtualMount, value: string | null) {
       (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
   } finally {
     vmActivityBusy.value = false;
+  }
+}
+
+function openVmRomsEditor(v: VirtualMount) {
+  editingVmRomsPath.value = v.path;
+  vmRomsError.value = null;
+}
+
+function cancelVmRomsEdit() {
+  editingVmRomsPath.value = null;
+  vmRomsError.value = null;
+}
+
+async function applyVmRomsDir(v: VirtualMount, value: string | null) {
+  vmRomsBusy.value = true;
+  vmRomsError.value = null;
+  try {
+    await $fetch(`/api/virtual-mounts`, {
+      method: "PATCH",
+      body: { path: v.path, romsRootRelPath: value },
+    });
+    cancelVmRomsEdit();
+    await refresh();
+  } catch (e) {
+    vmRomsError.value =
+      (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    vmRomsBusy.value = false;
+  }
+}
+
+async function scanVmRoms(v: VirtualMount) {
+  vmRomsScanningPath.value = v.path;
+  vmRomsScanMsg.value = null;
+  try {
+    const res = await $fetch<{
+      results: { summary?: { totalFiles: number; parsed: number }; error?: string; skippedReason?: string }[];
+    }>("/api/roms/scan", { method: "POST", body: { cacheKey: v.romsCacheKey } });
+    const r = res.results[0];
+    if (r?.error) vmRomsScanMsg.value = `Error: ${r.error}`;
+    else if (r?.skippedReason) vmRomsScanMsg.value = `Skipped: ${r.skippedReason}`;
+    else if (r?.summary) vmRomsScanMsg.value = `Scanned ${r.summary.totalFiles} ROM files (${r.summary.parsed} new/changed)`;
+  } catch (e) {
+    vmRomsScanMsg.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    vmRomsScanningPath.value = null;
   }
 }
 </script>
@@ -368,6 +423,10 @@ async function applyVmActivityDir(v: VirtualMount, value: string | null) {
             <span class="font-semibold text-fg">RetroArch activity:</span>
             {{ v.retroarchActivityDir ? `/${v.retroarchActivityDir}` : "not set" }}
           </p>
+          <p class="break-all text-xs text-fg-dim">
+            <span class="font-semibold text-fg">ROM library:</span>
+            {{ v.romsRootRelPath ? `/${v.romsRootRelPath}` : "not set" }}
+          </p>
 
           <div v-if="editingVmPath === v.path" class="flex flex-col gap-2">
             <p v-if="vmActivityError" class="text-danger text-sm">{{ vmActivityError }}</p>
@@ -384,6 +443,25 @@ async function applyVmActivityDir(v: VirtualMount, value: string | null) {
             </p>
           </div>
 
+          <div v-if="editingVmRomsPath === v.path" class="flex flex-col gap-2">
+            <p v-if="vmRomsError" class="text-danger text-sm">{{ vmRomsError }}</p>
+            <FolderPicker
+              v-if="v.exists && v.isDirectory"
+              :mount-path="v.path"
+              :initial-rel-path="v.romsRootRelPath"
+              commit-label="Use this folder"
+              @select="applyVmRomsDir(v, $event)"
+              @cancel="cancelVmRomsEdit"
+            />
+            <p v-else class="text-warn text-sm">
+              Virtual mount path is missing — fix the folder before configuring.
+            </p>
+          </div>
+
+          <p v-if="vmRomsScanMsg && editingVmRomsPath !== v.path" class="text-xs text-fg-dim">
+            {{ vmRomsScanMsg }}
+          </p>
+
           <div class="flex flex-wrap gap-2 pt-1">
             <button
               v-if="editingVmPath !== v.path"
@@ -399,7 +477,32 @@ async function applyVmActivityDir(v: VirtualMount, value: string | null) {
               :disabled="vmActivityBusy"
               @click="applyVmActivityDir(v, null)"
             >
-              Clear
+              Clear activity
+            </button>
+            <button
+              v-if="editingVmRomsPath !== v.path"
+              class="btn-secondary text-sm"
+              :disabled="!v.exists || !v.isDirectory"
+              @click="openVmRomsEditor(v)"
+            >
+              {{ v.romsRootRelPath ? "Change ROM folder" : "Set ROM folder" }}
+            </button>
+            <button
+              v-if="v.romsRootRelPath && editingVmRomsPath !== v.path"
+              class="btn-ghost text-sm"
+              :disabled="vmRomsScanningPath === v.path"
+              @click="scanVmRoms(v)"
+            >
+              <Spinner v-if="vmRomsScanningPath === v.path" size="sm" />
+              <span>{{ vmRomsScanningPath === v.path ? "Scanning…" : "Scan ROMs" }}</span>
+            </button>
+            <button
+              v-if="v.romsRootRelPath && editingVmRomsPath !== v.path"
+              class="btn-ghost text-sm"
+              :disabled="vmRomsBusy"
+              @click="applyVmRomsDir(v, null)"
+            >
+              Clear ROM
             </button>
             <button class="btn-ghost text-sm text-danger" @click="removeVirtual(v)">
               Remove

@@ -13,7 +13,11 @@ function normalizeRelPath(input: string): string {
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, "id");
   if (!id) throw createError({ statusCode: 400, statusMessage: "id required" });
-  const body = await readBody<{ nickname?: string; retroarchActivityDir?: string | null }>(event);
+  const body = await readBody<{
+    nickname?: string;
+    retroarchActivityDir?: string | null;
+    romsRootRelPath?: string | null;
+  }>(event);
 
   const cfg = await loadConfig();
   const dev = findDevice(cfg, id);
@@ -40,6 +44,21 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: "retroarchActivityDir must be a string or null",
+      });
+    }
+  }
+
+  if (body && "romsRootRelPath" in body) {
+    if (body.romsRootRelPath === null || body.romsRootRelPath === "") {
+      delete dev.romsRootRelPath;
+    } else if (typeof body.romsRootRelPath === "string") {
+      const trimmed = body.romsRootRelPath.trim();
+      dev.romsRootRelPath = trimmed ? normalizeRelPath(trimmed) : undefined;
+      if (!dev.romsRootRelPath) delete dev.romsRootRelPath;
+    } else {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "romsRootRelPath must be a string or null",
       });
     }
   }

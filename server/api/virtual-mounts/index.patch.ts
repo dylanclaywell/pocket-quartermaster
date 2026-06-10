@@ -13,6 +13,7 @@ export default defineEventHandler(async (event) => {
     path?: string;
     label?: string | null;
     retroarchActivityDir?: string | null;
+    romsRootRelPath?: string | null;
   }>(event);
   const raw = body?.path?.trim();
   if (!raw) throw createError({ statusCode: 400, statusMessage: "path required" });
@@ -45,6 +46,21 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: "retroarchActivityDir must be a string or null",
+      });
+    }
+  }
+
+  if (body && "romsRootRelPath" in body) {
+    if (body.romsRootRelPath === null || body.romsRootRelPath === "") {
+      delete entry.romsRootRelPath;
+    } else if (typeof body.romsRootRelPath === "string") {
+      const trimmed = body.romsRootRelPath.trim();
+      entry.romsRootRelPath = trimmed ? normalizeRelPath(trimmed) : undefined;
+      if (!entry.romsRootRelPath) delete entry.romsRootRelPath;
+    } else {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "romsRootRelPath must be a string or null",
       });
     }
   }

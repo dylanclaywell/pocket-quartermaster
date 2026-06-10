@@ -10,6 +10,8 @@ interface DeviceData {
   currentMountPath?: string;
   retroarchActivityDir?: string;
   activityCacheKey: string;
+  romsRootRelPath?: string;
+  romsCacheKey: string;
 }
 interface SlotRef {
   profileName: string;
@@ -22,7 +24,8 @@ interface ScanResultRow {
   cacheKey: string;
   sourceLabel: string;
   summary?: {
-    totalEntries: number;
+    totalEntries?: number;
+    totalFiles?: number;
     parsed: number;
     reused: number;
     scannedAt: string;
@@ -46,6 +49,13 @@ const editError = ref<string | null>(null);
 
 const scanning = ref(false);
 const scanResult = ref<ScanResultRow | null>(null);
+
+// ROM-library editor + scan state, parallel to the activity ones above.
+const editingRoms = ref(false);
+const romsBusy = ref(false);
+const romsError = ref<string | null>(null);
+const romsScanning = ref(false);
+const romsScanResult = ref<ScanResultRow | null>(null);
 
 async function refresh() {
   loading.value = true;
@@ -142,6 +152,54 @@ async function runScan() {
     };
   } finally {
     scanning.value = false;
+  }
+}
+
+function openRomsEditor() {
+  if (!device.value?.mounted) return;
+  editingRoms.value = true;
+  romsError.value = null;
+}
+
+function cancelRomsEdit() {
+  editingRoms.value = false;
+  romsError.value = null;
+}
+
+async function applyRomsDir(value: string | null) {
+  romsBusy.value = true;
+  romsError.value = null;
+  try {
+    await $fetch(`/api/devices/${id.value}`, {
+      method: "PATCH",
+      body: { romsRootRelPath: value },
+    });
+    editingRoms.value = false;
+    await refresh();
+  } catch (e) {
+    romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    romsBusy.value = false;
+  }
+}
+
+async function runRomsScan() {
+  if (!device.value) return;
+  romsScanning.value = true;
+  try {
+    const res = await $fetch<{ results: ScanResultRow[] }>("/api/roms/scan", {
+      method: "POST",
+      body: { cacheKey: device.value.romsCacheKey },
+    });
+    romsScanResult.value = res.results[0] ?? null;
+  } catch (e) {
+    romsScanResult.value = {
+      cacheKey: device.value.romsCacheKey,
+      sourceLabel: device.value.nickname,
+      error: (e as { statusMessage?: string }).statusMessage ?? (e as Error).message,
+    };
+  } finally {
+    romsScanning.value = false;
   }
 }
 
@@ -251,6 +309,84 @@ async function runScan() {
             class="btn-ghost text-sm"
             :disabled="editBusy"
             @click="applyActivityDir(null)"
+          >
+            Clear
+          </button>
+        </div>
+      </section>
+
+      <section class="card flex flex-col gap-2">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="font-semibold">ROM library</h2>
+          <span
+            v-if="device.romsRootRelPath"
+            class="pill bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok"
+            >configured</span
+          >
+          <span v-else class="pill bg-surface-2 text-fg-dim">not set</span>
+        </div>
+        <p class="break-all text-sm text-fg-dim">
+          {{
+            device.romsRootRelPath
+              ? `/${device.romsRootRelPath}`
+              : "Browse to the folder whose subfolders are per-system ROM folders (gba, snes, …)."
+          }}
+        </p>
+
+        <div v-if="editingRoms" class="flex flex-col gap-2">
+          <p v-if="romsError" class="text-danger text-sm">{{ romsError }}</p>
+          <FolderPicker
+            v-if="device.currentMountPath"
+            :mount-path="device.currentMountPath"
+            :initial-rel-path="device.romsRootRelPath"
+            commit-label="Use this folder"
+            @select="applyRomsDir($event)"
+            @cancel="cancelRomsEdit"
+          />
+        </div>
+
+        <p
+          v-if="romsScanResult"
+          class="text-xs"
+          :class="romsScanResult.error || romsScanResult.skippedReason ? 'text-warn' : 'text-ok'"
+        >
+          <template v-if="romsScanResult.error">Scan error: {{ romsScanResult.error }}</template>
+          <template v-else-if="romsScanResult.skippedReason">
+            Skipped: {{ romsScanResult.skippedReason }}
+          </template>
+          <template v-else-if="romsScanResult.summary">
+            Scanned {{ romsScanResult.summary.totalFiles }} ROM files
+            ({{ romsScanResult.summary.parsed }} new/changed)
+          </template>
+        </p>
+
+        <div v-if="!editingRoms" class="flex flex-wrap gap-2 pt-1">
+          <button
+            class="btn-secondary text-sm"
+            :disabled="!device.mounted"
+            :title="device.mounted ? '' : 'Mount this device to browse'"
+            @click="openRomsEditor"
+          >
+            {{ device.romsRootRelPath ? "Change folder" : "Set library folder" }}
+          </button>
+          <button
+            v-if="device.romsRootRelPath"
+            class="btn-ghost text-sm"
+            :disabled="!device.mounted || romsScanning"
+            :title="device.mounted ? '' : 'Mount this device to scan'"
+            @click="runRomsScan"
+          >
+            <Spinner v-if="romsScanning" size="sm" />
+            <span>{{ romsScanning ? "Scanning…" : "Scan ROMs" }}</span>
+          </button>
+          <NuxtLink v-if="device.romsRootRelPath" to="/roms" class="btn-ghost text-sm">
+            View library
+          </NuxtLink>
+          <button
+            v-if="device.romsRootRelPath"
+            class="btn-ghost text-sm"
+            :disabled="romsBusy"
+            @click="applyRomsDir(null)"
           >
             Clear
           </button>
