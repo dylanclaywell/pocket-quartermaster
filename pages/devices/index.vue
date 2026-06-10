@@ -8,7 +8,8 @@ interface MountedDevice {
   sizeBytes?: number;
   freeBytes?: number;
   virtual?: boolean;
-  marker: { id: string; nickname: string } | null;
+  marker: { id: string; nickname: string; registeredAt?: string } | null;
+  knownNickname?: string | null;
 }
 interface KnownDevice {
   id: string;
@@ -30,6 +31,7 @@ interface VirtualMount {
   activityCacheKey: string;
   romsRootRelPath?: string;
   romsCacheKey: string;
+  romLibraryRole?: "master" | "destination";
 }
 interface ConfigInfo {
   configPath: string;
@@ -101,6 +103,31 @@ onMounted(refresh);
 const unregisteredMounts = computed(() =>
   mounts.value.filter((m) => !m.marker),
 );
+
+// Mounts that carry a marker file whose id isn't in the current config —
+// orphaned after a config reset or a "forget". They can be reconnected
+// (adopted) without losing their stable id.
+const orphanedMounts = computed(() =>
+  mounts.value.filter((m) => m.marker && !m.knownNickname),
+);
+
+const adoptingMount = ref<string | null>(null);
+
+async function reconnect(m: MountedDevice) {
+  adoptingMount.value = m.mountPath;
+  error.value = null;
+  try {
+    const res = await $fetch<{ device: { id: string } }>("/api/devices/adopt", {
+      method: "POST",
+      body: { mountPath: m.mountPath },
+    });
+    await navigateTo(`/devices/${res.device.id}`);
+  } catch (e) {
+    error.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    adoptingMount.value = null;
+  }
+}
 
 function openRegisterForm(m: MountedDevice) {
   registeringMount.value = m.mountPath;
@@ -230,6 +257,23 @@ async function applyVmRomsDir(v: VirtualMount, value: string | null) {
   }
 }
 
+async function applyVmRomRole(v: VirtualMount, value: "master" | "destination") {
+  vmRomsBusy.value = true;
+  vmRomsError.value = null;
+  try {
+    await $fetch(`/api/virtual-mounts`, {
+      method: "PATCH",
+      body: { path: v.path, romLibraryRole: value },
+    });
+    await refresh();
+  } catch (e) {
+    vmRomsError.value =
+      (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    vmRomsBusy.value = false;
+  }
+}
+
 async function scanVmRoms(v: VirtualMount) {
   vmRomsScanningPath.value = v.path;
   vmRomsScanMsg.value = null;
@@ -311,6 +355,39 @@ async function scanVmRoms(v: VirtualMount) {
               Register this device
             </button>
           </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Section: mounts with an orphaned marker — present on disk but missing
+         from config. Reconnect re-adopts them with their original id. -->
+    <section v-if="orphanedMounts.length > 0" class="flex flex-col gap-2">
+      <h2 class="font-semibold">Previously registered</h2>
+      <p class="text-xs text-fg-dim">
+        These mounts carry a Pocket Quartermaster marker but aren't in this
+        computer's config — usually because they were registered on another
+        computer. Reconnect to use them here with their original id.
+      </p>
+      <ul class="flex flex-col gap-2">
+        <li v-for="m in orphanedMounts" :key="m.mountPath" class="card flex flex-col gap-2">
+          <div class="flex items-center justify-between gap-2">
+            <p class="truncate font-semibold">{{ m.marker?.nickname ?? m.label ?? m.mountPath }}</p>
+            <span class="pill bg-[color-mix(in_oklab,var(--color-warn)_25%,transparent)] text-warn">
+              not in config
+            </span>
+          </div>
+          <p class="truncate text-xs text-fg-dim">
+            {{ m.mountPath }} · {{ m.driveType ?? "?" }} ·
+            {{ formatBytes(m.freeBytes) }} / {{ formatBytes(m.sizeBytes) }}
+          </p>
+          <button
+            class="btn-primary self-start text-sm"
+            :disabled="adoptingMount === m.mountPath"
+            @click="reconnect(m)"
+          >
+            <Spinner v-if="adoptingMount === m.mountPath" size="sm" />
+            <span>{{ adoptingMount === m.mountPath ? "Reconnecting…" : "Reconnect" }}</span>
+          </button>
         </li>
       </ul>
     </section>
@@ -427,6 +504,21 @@ async function scanVmRoms(v: VirtualMount) {
             <span class="font-semibold text-fg">ROM library:</span>
             {{ v.romsRootRelPath ? `/${v.romsRootRelPath}` : "not set" }}
           </p>
+          <label
+            v-if="v.romsRootRelPath"
+            class="flex items-center gap-2 text-xs text-fg-dim"
+          >
+            <span class="font-semibold text-fg">Role</span>
+            <select
+              class="input max-w-40 py-1 text-xs"
+              :value="v.romLibraryRole ?? 'master'"
+              :disabled="vmRomsBusy"
+              @change="applyVmRomRole(v, ($event.target as HTMLSelectElement).value as 'master' | 'destination')"
+            >
+              <option value="master">Master</option>
+              <option value="destination">Destination</option>
+            </select>
+          </label>
 
           <div v-if="editingVmPath === v.path" class="flex flex-col gap-2">
             <p v-if="vmActivityError" class="text-danger text-sm">{{ vmActivityError }}</p>
