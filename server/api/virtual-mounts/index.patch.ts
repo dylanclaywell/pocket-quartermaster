@@ -1,5 +1,8 @@
 import { resolve } from "node:path";
 import { loadConfig, saveConfig } from "../../utils/storage";
+import type { LauncherKind } from "../../utils/types";
+
+const LAUNCHER_KINDS: LauncherKind[] = ["es-de", "muos"];
 
 function normalizeRelPath(input: string): string {
   return input
@@ -14,6 +17,8 @@ export default defineEventHandler(async (event) => {
     label?: string | null;
     retroarchActivityDir?: string | null;
     romsRootRelPath?: string | null;
+    launcherKind?: string | null;
+    esDeGamelistsRelPath?: string | null;
   }>(event);
   const raw = body?.path?.trim();
   if (!raw) throw createError({ statusCode: 400, statusMessage: "path required" });
@@ -61,6 +66,34 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: "romsRootRelPath must be a string or null",
+      });
+    }
+  }
+
+  if (body && "launcherKind" in body) {
+    if (body.launcherKind === null || body.launcherKind === "") {
+      delete entry.launcherKind;
+    } else if (LAUNCHER_KINDS.includes(body.launcherKind as LauncherKind)) {
+      entry.launcherKind = body.launcherKind as LauncherKind;
+    } else {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `launcherKind must be one of ${LAUNCHER_KINDS.join(", ")} or null`,
+      });
+    }
+  }
+
+  if (body && "esDeGamelistsRelPath" in body) {
+    if (body.esDeGamelistsRelPath === null || body.esDeGamelistsRelPath === "") {
+      delete entry.esDeGamelistsRelPath;
+    } else if (typeof body.esDeGamelistsRelPath === "string") {
+      const trimmed = body.esDeGamelistsRelPath.trim();
+      entry.esDeGamelistsRelPath = trimmed ? normalizeRelPath(trimmed) : undefined;
+      if (!entry.esDeGamelistsRelPath) delete entry.esDeGamelistsRelPath;
+    } else {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "esDeGamelistsRelPath must be a string or null",
       });
     }
   }

@@ -8,12 +8,17 @@ import { romDeviceCacheKey, romVirtualMountCacheKey } from "./romLibraryCache";
 import { computeLibrary, type ComputedGame } from "./romLibrary";
 
 /** A resolved ROM library root on disk, keyed by its rom cache key. */
-interface SourceRoot {
+export interface SourceRoot {
   cacheKey: string;
   label: string;
   /** Absolute path of the library root, or undefined when not mounted. */
   absRoot?: string;
   mounted: boolean;
+  /** Absolute path of the bare mount/volume this source lives on, when mounted.
+      Launcher metadata (e.g. ES-DE gamelists) lives off this, not off absRoot. */
+  mountPath?: string;
+  /** Forward-slash ES-DE gamelists path relative to mountPath, if configured. */
+  esDeGamelistsRelPath?: string;
 }
 
 /** Resolve every configured ROM source to its current absolute root path.
@@ -37,6 +42,8 @@ export async function resolveRomSourceRoots(cfg: ConfigFile): Promise<Map<string
       label: dev.nickname,
       absRoot: mountPath ? join(mountPath, dev.romsRootRelPath) : undefined,
       mounted: Boolean(mountPath),
+      mountPath,
+      esDeGamelistsRelPath: dev.esDeGamelistsRelPath,
     });
   }
   for (const vm of cfg.virtualMounts) {
@@ -49,6 +56,8 @@ export async function resolveRomSourceRoots(cfg: ConfigFile): Promise<Map<string
       label: vm.label || vm.path,
       absRoot: exists ? join(absVm, vm.romsRootRelPath) : undefined,
       mounted: exists,
+      mountPath: exists ? absVm : undefined,
+      esDeGamelistsRelPath: vm.esDeGamelistsRelPath,
     });
   }
   return roots;

@@ -12,6 +12,8 @@ interface DeviceData {
   activityCacheKey: string;
   romsRootRelPath?: string;
   romsCacheKey: string;
+  launcherKind?: "es-de" | "muos";
+  esDeGamelistsRelPath?: string;
 }
 interface SlotRef {
   profileName: string;
@@ -183,6 +185,58 @@ async function applyRomsDir(value: string | null) {
   }
 }
 
+const launcherOptions = [
+  { value: "", label: "None (don't write names)" },
+  { value: "es-de", label: "ES-DE (gamelist.xml)" },
+  { value: "muos", label: "muOS (names coming soon)" },
+];
+const launcherBusy = ref(false);
+
+async function applyLauncher(value: string) {
+  romsError.value = null;
+  launcherBusy.value = true;
+  try {
+    await $fetch(`/api/devices/${id.value}`, {
+      method: "PATCH",
+      body: { launcherKind: value || null },
+    });
+    await refresh();
+  } catch (e) {
+    romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    launcherBusy.value = false;
+  }
+}
+
+// ES-DE keeps its gamelists in its own data folder, separate from the ROMs —
+// the user points us at <mount>/ES-DE/gamelists so name writes land where ES-DE
+// actually reads them.
+const editingGamelists = ref(false);
+const gamelistsBusy = ref(false);
+
+function openGamelistsEditor() {
+  if (!device.value?.mounted) return;
+  editingGamelists.value = true;
+  romsError.value = null;
+}
+
+async function applyGamelistsDir(value: string | null) {
+  gamelistsBusy.value = true;
+  romsError.value = null;
+  try {
+    await $fetch(`/api/devices/${id.value}`, {
+      method: "PATCH",
+      body: { esDeGamelistsRelPath: value },
+    });
+    editingGamelists.value = false;
+    await refresh();
+  } catch (e) {
+    romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    gamelistsBusy.value = false;
+  }
+}
+
 async function runRomsScan() {
   if (!device.value) return;
   romsScanning.value = true;
@@ -350,6 +404,101 @@ async function runRomsScan() {
           <NuxtLink to="/roms" class="underline hover:text-fg">ROM library</NuxtLink>
           page.
         </p>
+
+        <div v-if="device.romsRootRelPath && !editingRoms" class="flex flex-col gap-1 pt-1">
+          <span class="label">Launcher on this device</span>
+          <AppSelect
+            :model-value="device.launcherKind ?? ''"
+            :options="launcherOptions"
+            :disabled="launcherBusy"
+            aria-label="Launcher"
+            @update:model-value="applyLauncher"
+          />
+          <p class="text-xs text-fg-dim">
+            Sets which metadata file gets clean game names when you transfer ROMs here.
+          </p>
+        </div>
+
+        <div
+          v-if="device.romsRootRelPath && !editingRoms && device.launcherKind === 'es-de'"
+          class="flex flex-col gap-2 rounded-xl bg-surface-2 p-3"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="label">ES-DE gamelists folder</span>
+            <span
+              v-if="device.esDeGamelistsRelPath"
+              class="pill bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok"
+              >set</span
+            >
+            <span v-else class="pill bg-surface-1 text-fg-dim">not set</span>
+          </div>
+          <p class="break-all text-sm text-fg-dim">
+            {{
+              device.esDeGamelistsRelPath
+                ? `/${device.esDeGamelistsRelPath}`
+                : "Point to ES-DE's gamelists folder (usually ES-DE/gamelists) so transferred games show clean names."
+            }}
+          </p>
+
+          <div v-if="editingGamelists" class="flex flex-col gap-2">
+            <FolderPicker
+              v-if="device.currentMountPath"
+              :mount-path="device.currentMountPath"
+              :initial-rel-path="device.esDeGamelistsRelPath"
+              commit-label="Use this folder"
+              @select="applyGamelistsDir($event)"
+              @cancel="editingGamelists = false"
+            />
+          </div>
+
+          <div v-if="!editingGamelists" class="flex flex-wrap gap-2">
+            <button
+              class="btn-secondary text-sm"
+              :disabled="!device.mounted || gamelistsBusy"
+              :title="device.mounted ? '' : 'Mount this device to browse'"
+              @click="openGamelistsEditor"
+            >
+              {{ device.esDeGamelistsRelPath ? "Change folder" : "Set gamelists folder" }}
+            </button>
+            <button
+              v-if="device.esDeGamelistsRelPath"
+              class="btn-ghost text-sm"
+              :disabled="gamelistsBusy"
+              @click="applyGamelistsDir(null)"
+            >
+              Clear
+            </button>
+          </div>
+
+          <details class="text-xs text-fg-dim">
+            <summary class="cursor-pointer select-none font-medium text-fg">
+              ES-DE on Android: how to get gamelists onto the SD card
+            </summary>
+            <ol class="mt-2 flex list-decimal flex-col gap-1 pl-4">
+              <li>Close ES-DE fully.</li>
+              <li>
+                Copy the existing <span class="font-mono">ES-DE</span> folder from internal
+                storage to the <span class="font-semibold text-fg">root of the SD card</span>
+                (keeps your scraped names &amp; art).
+              </li>
+              <li>
+                Re-trigger ES-DE's first-run setup: revoke its storage permission in Android
+                Settings → Apps → ES-DE (or rename the internal <span class="font-mono">ES-DE</span>
+                folder). Don't use “Clear storage” — that wipes themes.
+              </li>
+              <li>
+                Relaunch ES-DE. When asked for the
+                <span class="font-semibold text-fg">application data directory</span>, browse to
+                the SD card and pick its <span class="font-mono">ES-DE</span> folder. Point the
+                ROM directory at your existing SD ROMs folder.
+              </li>
+              <li>
+                Finish setup, then set the folder above to
+                <span class="font-mono">ES-DE/gamelists</span> on the SD.
+              </li>
+            </ol>
+          </details>
+        </div>
 
         <p
           v-if="romsScanResult"

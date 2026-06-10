@@ -31,6 +31,18 @@ interface ItemResult {
   skipped?: string;
   error?: string;
 }
+interface MetadataResult {
+  systemKey: string;
+  ok: boolean;
+  written: number;
+  total: number;
+  error?: string;
+}
+interface MetadataSummary {
+  kind: "es-de" | "muos";
+  results: MetadataResult[];
+  note?: string;
+}
 
 const destinations = ref<LibrarySummary[]>([]);
 const libraryLabel = ref<string>("");
@@ -39,10 +51,13 @@ const destCacheKey = ref<string>("");
 const planItems = ref<PlanItem[]>([]);
 const selected = ref<Set<string>>(new Set());
 const results = ref<ItemResult[]>([]);
+const metadata = ref<MetadataSummary | null>(null);
 
 const loading = ref(true);
 const planning = ref(false);
 const running = ref(false);
+const syncingNames = ref(false);
+const nameSyncNote = ref<string | null>(null);
 const error = ref<string | null>(null);
 
 const search = ref("");
@@ -121,6 +136,15 @@ const resultSummary = computed(() => {
   return { ok, skipped, failed };
 });
 
+// Names written into launcher metadata after a transfer, plus any per-system
+// errors (e.g. muOS, which isn't wired yet).
+const metadataSummary = computed(() => {
+  if (!metadata.value) return null;
+  const written = metadata.value.results.reduce((s, r) => s + r.written, 0);
+  const errors = metadata.value.results.filter((r) => !r.ok && r.error);
+  return { kind: metadata.value.kind, written, errors, note: metadata.value.note };
+});
+
 async function loadInitial() {
   loading.value = true;
   error.value = null;
@@ -155,6 +179,8 @@ async function loadPlan() {
   planning.value = true;
   error.value = null;
   results.value = [];
+  metadata.value = null;
+  nameSyncNote.value = null;
   try {
     const res = await $fetch<{ plan: { items: PlanItem[] } }>(
       "/api/roms/transfer/plan",
@@ -199,26 +225,59 @@ async function run() {
   if (selected.value.size === 0) return;
   running.value = true;
   error.value = null;
+  nameSyncNote.value = null;
   try {
-    const res = await $fetch<{ results: ItemResult[]; rescanError?: string }>(
-      "/api/roms/transfer/execute",
-      {
-        method: "POST",
-        body: {
-          destCacheKey: destCacheKey.value,
-          gameKeys: [...selected.value],
-        },
+    const res = await $fetch<{
+      results: ItemResult[];
+      rescanError?: string;
+      metadata?: MetadataSummary;
+    }>("/api/roms/transfer/execute", {
+      method: "POST",
+      body: {
+        destCacheKey: destCacheKey.value,
+        gameKeys: [...selected.value],
       },
-    );
+    });
     results.value = res.results;
+    const md = res.metadata ?? null;
     if (res.rescanError)
       error.value = `Transfer done, but re-scan failed: ${res.rescanError}`;
     await loadPlan();
+    // loadPlan() clears metadata; restore this run's result after it.
+    metadata.value = md;
   } catch (e) {
     error.value =
       (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
   } finally {
     running.value = false;
+  }
+}
+
+// Push clean display names to the destination's launcher without copying any
+// ROMs — for when names were edited after the games were already transferred.
+async function syncNames() {
+  if (!destCacheKey.value) return;
+  syncingNames.value = true;
+  error.value = null;
+  nameSyncNote.value = null;
+  metadata.value = null;
+  try {
+    const res = await $fetch<{
+      kind: "es-de" | "muos";
+      entryCount: number;
+      results: MetadataResult[];
+    }>("/api/roms/metadata/sync", {
+      method: "POST",
+      body: { destCacheKey: destCacheKey.value },
+    });
+    metadata.value = { kind: res.kind, results: res.results };
+    if (res.entryCount === 0)
+      nameSyncNote.value = "No games are installed on this device yet.";
+  } catch (e) {
+    error.value =
+      (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    syncingNames.value = false;
   }
 }
 
@@ -278,6 +337,41 @@ function itemState(i: PlanItem): { text: string; cls: string } {
             aria-label="Destination device"
             @update:model-value="onSelectDest"
           />
+        </div>
+
+        <div v-if="destCacheKey" class="flex flex-wrap items-center gap-2">
+          <button
+            class="btn-ghost text-sm"
+            :disabled="syncingNames || running"
+            title="Push edited display names to this device's launcher without copying ROMs"
+            @click="syncNames"
+          >
+            <Spinner v-if="syncingNames" size="sm" />
+            <span>{{ syncingNames ? "Syncing names…" : "Sync names to device" }}</span>
+          </button>
+          <span v-if="nameSyncNote" class="text-xs text-fg-dim">{{ nameSyncNote }}</span>
+        </div>
+
+        <div v-if="metadataSummary" class="card flex flex-col gap-1 text-sm">
+          <p v-if="metadataSummary.note" class="text-warn">
+            {{ metadataSummary.kind === "es-de" ? "ES-DE" : "muOS" }} names not written:
+            {{ metadataSummary.note }}
+          </p>
+          <p v-else :class="metadataSummary.errors.length ? 'text-warn' : 'text-ok'">
+            {{ metadataSummary.kind === "es-de" ? "ES-DE" : "muOS" }}: wrote
+            {{ metadataSummary.written }} name{{ metadataSummary.written === 1 ? "" : "s" }}
+            <template v-if="metadataSummary.written === 0 && !metadataSummary.errors.length">
+              (already up to date)
+            </template>
+          </p>
+          <ul
+            v-if="metadataSummary.errors.length"
+            class="flex flex-col gap-0.5 text-xs text-warn"
+          >
+            <li v-for="r in metadataSummary.errors" :key="r.systemKey">
+              {{ r.systemKey }}: {{ r.error }}
+            </li>
+          </ul>
         </div>
 
         <div

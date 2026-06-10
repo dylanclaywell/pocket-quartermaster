@@ -2,6 +2,9 @@ import { loadConfig, saveConfig } from "../../utils/storage";
 import { findDevice, upsertDevice } from "../../utils/profiles";
 import { rewriteMarkerNickname, readMarker } from "../../utils/deviceId";
 import { listAllMounts } from "../../utils/devices";
+import type { LauncherKind } from "../../utils/types";
+
+const LAUNCHER_KINDS: LauncherKind[] = ["es-de", "muos"];
 
 function normalizeRelPath(input: string): string {
   return input
@@ -17,6 +20,8 @@ export default defineEventHandler(async (event) => {
     nickname?: string;
     retroarchActivityDir?: string | null;
     romsRootRelPath?: string | null;
+    launcherKind?: string | null;
+    esDeGamelistsRelPath?: string | null;
   }>(event);
 
   const cfg = await loadConfig();
@@ -59,6 +64,34 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: "romsRootRelPath must be a string or null",
+      });
+    }
+  }
+
+  if (body && "launcherKind" in body) {
+    if (body.launcherKind === null || body.launcherKind === "") {
+      delete dev.launcherKind;
+    } else if (LAUNCHER_KINDS.includes(body.launcherKind as LauncherKind)) {
+      dev.launcherKind = body.launcherKind as LauncherKind;
+    } else {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `launcherKind must be one of ${LAUNCHER_KINDS.join(", ")} or null`,
+      });
+    }
+  }
+
+  if (body && "esDeGamelistsRelPath" in body) {
+    if (body.esDeGamelistsRelPath === null || body.esDeGamelistsRelPath === "") {
+      delete dev.esDeGamelistsRelPath;
+    } else if (typeof body.esDeGamelistsRelPath === "string") {
+      const trimmed = body.esDeGamelistsRelPath.trim();
+      dev.esDeGamelistsRelPath = trimmed ? normalizeRelPath(trimmed) : undefined;
+      if (!dev.esDeGamelistsRelPath) delete dev.esDeGamelistsRelPath;
+    } else {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "esDeGamelistsRelPath must be a string or null",
       });
     }
   }
