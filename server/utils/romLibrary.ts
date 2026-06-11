@@ -168,13 +168,14 @@ export async function computeLibrary(
     );
   }
 
-  // The library source provides the canonical games + variants. Destinations are
-  // the other ROM-configured sources. Removed/unknown caches are ignored.
-  const libraryCaches = caches.filter((c) => c.cacheKey === libraryKey);
-  const destCaches = caches.filter((c) => {
-    const m = sourceMeta.get(c.cacheKey);
-    return m?.configured && m.role === "destination";
-  });
+  // Every configured ROM source contributes to the catalog — there is no single
+  // master library. A game's variants are the union across all sources, and
+  // every source appears in the per-source presence matrix below. Removed or
+  // unknown caches (whose source is gone from config) are ignored.
+  const configuredCacheKeys = new Set(
+    [...sourceMeta.values()].filter((m) => m.configured).map((m) => m.cacheKey),
+  );
+  const activeCaches = caches.filter((c) => configuredCacheKeys.has(c.cacheKey));
 
   const metaByGameKey = new Map(cfg.gameMeta.map((m) => [m.gameKey, m]));
   const prefByGameAndDest = new Map<string, string | undefined>();
@@ -189,7 +190,7 @@ export async function computeLibrary(
   }
   const building = new Map<string, Building>();
 
-  for (const cache of libraryCaches) {
+  for (const cache of activeCaches) {
     const label = metaFor(cache.cacheKey).sourceLabel;
     for (const rec of cache.files) {
       let b = building.get(rec.gameKey);
@@ -240,9 +241,9 @@ export async function computeLibrary(
     }
   }
 
-  // Pre-group destination files by gameKey for cheap per-game lookup.
+  // Pre-group every source's files by gameKey for cheap per-game lookup.
   const destFilesByGame = new Map<string, Map<string, RomFileRecord[]>>(); // gameKey → cacheKey → recs
-  for (const cache of destCaches) {
+  for (const cache of activeCaches) {
     for (const rec of cache.files) {
       let byCache = destFilesByGame.get(rec.gameKey);
       if (!byCache) {
@@ -277,9 +278,10 @@ export async function computeLibrary(
       a.filename.localeCompare(b.filename, undefined, { sensitivity: "base" }),
     );
 
-    // Per-destination install/preferred matrix.
+    // Per-source presence/preferred matrix: one row per configured source so
+    // the UI can show which devices hold this game and which variant.
     const byCache = destFilesByGame.get(game.gameKey);
-    for (const cache of destCaches) {
+    for (const cache of activeCaches) {
       const m = metaFor(cache.cacheKey);
       const recs = byCache?.get(cache.cacheKey) ?? [];
       const installedFilenames = recs.map((r) => r.filename);

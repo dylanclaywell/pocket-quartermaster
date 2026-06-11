@@ -43,6 +43,13 @@ const showBack = computed(() => route.path !== "/");
         ROMs
       </NuxtLink>
       <NuxtLink
+        to="/roms/transfer"
+        class="btn-ghost px-2 py-2 text-sm font-medium"
+        aria-label="Transfer"
+      >
+        Transfer
+      </NuxtLink>
+      <NuxtLink
         to="/devices"
         class="btn-ghost px-2 py-2 text-sm font-medium"
         aria-label="Devices"

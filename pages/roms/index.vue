@@ -12,6 +12,7 @@ interface LibraryGame {
   saveProfileName?: string;
   destinationCount: number;
   destinationsInstalled: number;
+  installedOn: string[];
   hasMismatch: boolean;
   hasThumbnail: boolean;
 }
@@ -51,43 +52,21 @@ const scanning = ref(false);
 const scanResults = ref<ScanResultRow[]>([]);
 const search = ref("");
 
-const configuredSources = computed(() =>
-  libraries.value.filter((l) => l.configured),
-);
-const libraryKey = computed(
-  () => libraries.value.find((l) => l.role === "library")?.cacheKey ?? "",
-);
-const librarySource = computed(
-  () => libraries.value.find((l) => l.cacheKey === libraryKey.value) ?? null,
-);
-const destinationSources = computed(() =>
-  libraries.value.filter(
-    (l) => l.role === "destination" && (l.configured || l.cacheExists),
-  ),
-);
-const settingLibrary = ref(false);
+// Which source's games to show. "" = all sources (the full catalog union).
+const showingSource = ref<string>("");
 
-const librarySelectOptions = computed(() => [
-  { value: "", label: "(choose a source)" },
-  ...configuredSources.value.map((s) => ({ value: s.cacheKey, label: s.sourceLabel })),
+// Sources that have been scanned (have a cache) are the meaningful filter
+// targets; an unscanned source has nothing to show.
+const scannedSources = computed(() =>
+  libraries.value.filter((l) => l.cacheExists),
+);
+const sourceOptions = computed(() => [
+  { value: "", label: "All sources" },
+  ...scannedSources.value.map((s) => ({ value: s.cacheKey, label: s.sourceLabel })),
 ]);
-
-async function setLibrary(cacheKey: string) {
-  settingLibrary.value = true;
-  loadError.value = null;
-  try {
-    await $fetch("/api/roms/library", {
-      method: "PUT",
-      body: { sourceCacheKey: cacheKey || null },
-    });
-    await loadCached();
-  } catch (e) {
-    loadError.value =
-      (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
-  } finally {
-    settingLibrary.value = false;
-  }
-}
+const selectedSource = computed(
+  () => libraries.value.find((l) => l.cacheKey === showingSource.value) ?? null,
+);
 
 const scanSummary = computed(() => {
   if (scanResults.value.length === 0) return null;
@@ -109,12 +88,15 @@ const scanSummary = computed(() => {
 
 const filteredGames = computed(() => {
   const q = search.value.trim().toLowerCase();
-  if (!q) return games.value;
-  return games.value.filter(
-    (g) =>
+  const src = showingSource.value;
+  return games.value.filter((g) => {
+    if (src && !g.installedOn.includes(src)) return false;
+    if (!q) return true;
+    return (
       g.displayName.toLowerCase().includes(q) ||
-      g.system.toLowerCase().includes(q),
-  );
+      g.system.toLowerCase().includes(q)
+    );
+  });
 });
 
 const totalFiles = computed(() =>
@@ -193,19 +175,14 @@ onMounted(loadCached);
   <div class="flex flex-col gap-5">
     <header class="flex items-center justify-between gap-2">
       <h1 class="text-xl font-bold">ROM library</h1>
-      <div class="flex gap-2">
-        <NuxtLink to="/roms/transfer" class="btn-secondary text-sm"
-          >Transfer →</NuxtLink
-        >
-        <button
-          class="btn-primary text-sm"
-          :disabled="scanning"
-          @click="runScan()"
-        >
-          <Spinner v-if="scanning" size="sm" />
-          <span>{{ scanning ? "Scanning…" : "Scan libraries" }}</span>
-        </button>
-      </div>
+      <button
+        class="btn-primary text-sm"
+        :disabled="scanning"
+        @click="runScan()"
+      >
+        <Spinner v-if="scanning" size="sm" />
+        <span>{{ scanning ? "Scanning…" : "Scan libraries" }}</span>
+      </button>
     </header>
 
     <p v-if="loadError" class="text-danger">{{ loadError }}</p>
@@ -226,49 +203,31 @@ onMounted(loadCached);
       >
     </div>
 
-    <!-- Library source -->
-    <section class="flex flex-col gap-2">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">
-        Library source
-      </h2>
-      <div
-        v-if="configuredSources.length === 0"
-        class="card text-center text-fg-dim"
-      >
-        <p class="mb-1">No ROM sources configured yet.</p>
-        <p class="text-xs">
-          Set a <span class="font-semibold text-fg">ROM library folder</span> on
-          a device or virtual mount, then come back to pick which one is your
-          library. Its subfolders (gba, snes, …) are read as systems.
-        </p>
-        <NuxtLink to="/devices" class="btn-secondary mt-3 text-sm"
-          >Configure a source</NuxtLink
-        >
-      </div>
-      <div v-else class="card flex flex-col gap-2">
+    <!-- Showing: filter the catalog to one source, or all -->
+    <section v-if="scannedSources.length > 0" class="flex flex-col gap-2">
+      <div class="card flex flex-col gap-2">
         <div class="flex flex-col gap-1">
-          <span class="label">This device holds your library</span>
+          <span class="label">Showing</span>
           <AppSelect
-            :model-value="libraryKey"
-            :options="librarySelectOptions"
-            :disabled="settingLibrary"
-            aria-label="Library source"
-            @update:model-value="setLibrary"
+            :model-value="showingSource"
+            :options="sourceOptions"
+            aria-label="Source filter"
+            @update:model-value="(v: string) => (showingSource = v)"
           />
         </div>
         <div
-          v-if="librarySource"
+          v-if="selectedSource"
           class="flex items-center justify-between gap-3 text-xs text-fg-dim"
         >
           <span class="truncate">
-            <span v-if="librarySource.romsRootRelPath" class="font-mono"
-              >/{{ librarySource.romsRootRelPath }}</span
+            <span v-if="selectedSource.romsRootRelPath" class="font-mono"
+              >/{{ selectedSource.romsRootRelPath }}</span
             >
-            <template v-if="librarySource.cacheExists">
-              · {{ librarySource.fileCount ?? 0 }} files ·
+            <template v-if="selectedSource.cacheExists">
+              · {{ selectedSource.fileCount ?? 0 }} files ·
               {{
-                librarySource.lastScannedAt
-                  ? formatRelativeIso(librarySource.lastScannedAt)
+                selectedSource.lastScannedAt
+                  ? formatRelativeIso(selectedSource.lastScannedAt)
                   : "—"
               }}
             </template>
@@ -276,49 +235,25 @@ onMounted(loadCached);
           <button
             class="btn-ghost shrink-0 text-sm"
             :disabled="scanning"
-            @click="runScan(libraryKey)"
+            @click="runScan(showingSource)"
           >
-            Scan
+            Scan this source
           </button>
         </div>
       </div>
     </section>
 
-    <!-- Destinations -->
-    <section v-if="destinationSources.length > 0" class="flex flex-col gap-2">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">
-        Destinations
-      </h2>
-      <ul class="flex flex-col gap-2">
-        <li
-          v-for="lib in destinationSources"
-          :key="lib.cacheKey"
-          class="card flex items-center justify-between gap-3"
-        >
-          <div class="flex min-w-0 flex-1 flex-col">
-            <span class="truncate font-semibold">{{ lib.sourceLabel }}</span>
-            <span class="truncate text-xs text-fg-dim">
-              <span v-if="lib.romsRootRelPath" class="font-mono"
-                >/{{ lib.romsRootRelPath }}</span
-              >
-              <template v-if="lib.cacheExists">
-                · {{ lib.fileCount ?? 0 }} files ·
-                {{
-                  lib.lastScannedAt ? formatRelativeIso(lib.lastScannedAt) : "—"
-                }}
-              </template>
-            </span>
-          </div>
-          <button
-            class="btn-ghost text-sm"
-            :disabled="scanning || !lib.configured"
-            @click="runScan(lib.cacheKey)"
-          >
-            Scan
-          </button>
-        </li>
-      </ul>
-    </section>
+    <div v-else class="card text-center text-fg-dim">
+      <p class="mb-1">No ROM sources scanned yet.</p>
+      <p class="text-xs">
+        Set a <span class="font-semibold text-fg">ROM library folder</span> on a
+        device or virtual mount (its subfolders — gba, snes, … — are read as
+        systems), then scan.
+      </p>
+      <NuxtLink to="/devices" class="btn-secondary mt-3 text-sm"
+        >Configure a source</NuxtLink
+      >
+    </div>
 
     <!-- Games -->
     <section class="flex flex-col gap-3">
@@ -351,24 +286,23 @@ onMounted(loadCached);
         <Spinner /> <span>Loading library…</span>
       </div>
       <div v-else-if="games.length === 0" class="card text-center text-fg-dim">
-        <template v-if="configuredSources.length > 0 && !libraryKey">
-          <p>No library source chosen.</p>
-          <p class="mt-2 text-xs">
-            Pick which device holds your library above.
-          </p>
-        </template>
-        <template v-else>
-          <p>No ROMs scanned yet.</p>
-          <p class="mt-2 text-xs">
-            Press “Scan libraries”, or check the library folder path.
-          </p>
-        </template>
+        <p>No ROMs scanned yet.</p>
+        <p class="mt-2 text-xs">
+          Press “Scan libraries”, or check the ROM folder path on your sources.
+        </p>
       </div>
       <div
         v-else-if="filteredGames.length === 0"
         class="card text-center text-sm text-fg-dim"
       >
-        No games match “{{ search }}”.
+        <template v-if="showingSource">
+          No games on {{ selectedSource?.sourceLabel ?? "this source" }}<template
+            v-if="search"
+          >
+            match “{{ search }}”</template
+          >.
+        </template>
+        <template v-else>No games match “{{ search }}”.</template>
       </div>
       <div v-else class="flex flex-col gap-4">
         <div

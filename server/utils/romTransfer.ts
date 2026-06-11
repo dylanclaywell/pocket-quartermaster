@@ -84,39 +84,58 @@ export interface TransferPlanItem {
 }
 
 export interface TransferPlan {
+  sourceCacheKey: string;
+  sourceLabel: string;
   destCacheKey: string;
   destLabel: string;
   items: TransferPlanItem[];
 }
 
-/** Pick the variant a destination should receive: explicit preference, else the
- *  game default. Returns the matching ComputedVariant or null. */
-function chosenVariant(game: ComputedGame, destCacheKey: string) {
-  const dest = game.destinations.find((d) => d.cacheKey === destCacheKey);
-  const key = dest?.preferredVariantKey ?? game.defaultVariantKey;
-  if (!key) return null;
-  return game.variants.find((v) => v.key === key) ?? null;
+/** Pick which variant to copy from the source to the destination. Only variants
+ *  the source actually holds are candidates; among those, prefer the
+ *  destination's preferred variant, then the game default, then the first. */
+function chosenVariant(
+  game: ComputedGame,
+  sourceCacheKey: string,
+  destCacheKey: string,
+) {
+  const candidates = game.variants.filter((v) =>
+    v.librarySources.some((s) => s.cacheKey === sourceCacheKey),
+  );
+  if (candidates.length === 0) return null;
+  const destPref = game.destinations.find(
+    (d) => d.cacheKey === destCacheKey,
+  )?.preferredVariantKey;
+  return (
+    candidates.find((v) => v.key === destPref) ??
+    candidates.find((v) => v.key === game.defaultVariantKey) ??
+    candidates[0]
+  );
 }
 
-/** Build a transfer plan for sending the chosen variant of each game to one
- *  destination. Pure resolution — copies nothing. Each item is annotated with
- *  any blocker (no variant, source/destination not mounted, source missing) so
- *  the UI can show why something won't move. */
+/** Build a transfer plan for copying each game from one source to one
+ *  destination. Any source → any destination — there is no master. Pure
+ *  resolution; copies nothing. Each item is annotated with any blocker (source
+ *  lacks the game, source/destination not mounted, source file missing) so the
+ *  UI can show why something won't move. */
 export async function buildTransferPlan(
   cfg: ConfigFile,
+  sourceCacheKey: string,
   destCacheKey: string,
   gameKeys: string[],
 ): Promise<TransferPlan> {
   const { games } = await computeLibrary(cfg);
   const roots = await resolveRomSourceRoots(cfg);
+  const source = roots.get(sourceCacheKey);
   const dest = roots.get(destCacheKey);
+  const sourceLabel = source?.label ?? sourceCacheKey;
   const destLabel = dest?.label ?? destCacheKey;
   const wanted = new Set(gameKeys);
 
   const items: TransferPlanItem[] = [];
   for (const game of games) {
     if (!wanted.has(game.gameKey)) continue;
-    const variant = chosenVariant(game, destCacheKey);
+    const variant = chosenVariant(game, sourceCacheKey, destCacheKey);
 
     const base: TransferPlanItem = {
       gameKey: game.gameKey,
@@ -125,7 +144,7 @@ export async function buildTransferPlan(
       variantKey: variant?.key ?? "",
       filename: variant?.filename ?? "",
       sizeBytes: variant?.sizeBytes ?? 0,
-      sourceLabel: "",
+      sourceLabel,
       sourceAbsPath: "",
       destLabel,
       destAbsPath: "",
@@ -134,11 +153,11 @@ export async function buildTransferPlan(
     };
 
     if (!variant) {
-      items.push({ ...base, blocker: "No variant chosen (set a default or preference)" });
+      items.push({ ...base, blocker: `Not on ${sourceLabel}` });
       continue;
     }
 
-    // Already installed?
+    // Already installed on the destination?
     const destState = game.destinations.find((d) => d.cacheKey === destCacheKey);
     if (destState?.installedVariantKey === variant.key) base.alreadyInstalled = true;
 
@@ -148,21 +167,11 @@ export async function buildTransferPlan(
     }
     base.destAbsPath = join(dest.absRoot, variant.relPath.split("/").join(sep));
 
-    // Pick a mounted library source that holds this variant.
-    let resolvedSource: SourceRoot | undefined;
-    for (const ms of variant.librarySources) {
-      const root = roots.get(ms.cacheKey);
-      if (root?.mounted && root.absRoot) {
-        resolvedSource = root;
-        break;
-      }
-    }
-    if (!resolvedSource?.absRoot) {
-      items.push({ ...base, blocker: "The library holding this variant is not mounted" });
+    if (!source?.mounted || !source.absRoot) {
+      items.push({ ...base, blocker: `Source "${sourceLabel}" is not mounted` });
       continue;
     }
-    base.sourceLabel = resolvedSource.label;
-    base.sourceAbsPath = join(resolvedSource.absRoot, variant.relPath.split("/").join(sep));
+    base.sourceAbsPath = join(source.absRoot, variant.relPath.split("/").join(sep));
 
     if (!existsSync(base.sourceAbsPath)) {
       items.push({ ...base, blocker: `Source file missing: ${base.sourceAbsPath}` });
@@ -172,7 +181,7 @@ export async function buildTransferPlan(
     items.push(base);
   }
 
-  return { destCacheKey, destLabel, items };
+  return { sourceCacheKey, sourceLabel, destCacheKey, destLabel, items };
 }
 
 export interface TransferItemResult {
