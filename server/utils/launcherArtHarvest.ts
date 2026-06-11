@@ -1,15 +1,11 @@
 import { readFile, readdir, stat } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 import type { ConfigFile } from "./types";
 import { computeLibrary } from "./romLibrary";
 import { resolveRomSourceRoots } from "./romTransfer";
-import { esDeSubdir, launcherKindForCacheKey } from "./launcherMetadata";
+import { launcherKindForCacheKey } from "./launcherMetadata";
+import { getArtLayout } from "./launcherArt";
 import { hasThumbnail, saveThumbnail, MAX_THUMBNAIL_BYTES } from "./thumbnails";
-
-/** ES-DE downloaded_media subfolders to pull box art from, best first. The
- *  first match for a game wins, so covers (2D box) beats screenshots. */
-const ART_TYPES_BY_PREFERENCE = ["covers", "miximages", "screenshots"] as const;
 
 const MIME_BY_EXT: Record<string, string> = {
   ".png": "image/png",
@@ -19,8 +15,6 @@ const MIME_BY_EXT: Record<string, string> = {
 };
 
 export interface ArtHarvestResult {
-  /** Absolute downloaded_media dir scanned, for messaging. */
-  mediaDir?: string;
   /** Image files looked at. */
   scanned: number;
   /** New covers copied into the server cache. */
@@ -33,10 +27,12 @@ export interface ArtHarvestResult {
   reason?: string;
 }
 
-/** Pull box art that a destination's launcher already has on disk into the
- *  server thumbnail cache, so it shows across the app and can be pushed to other
+/** Pull box art a destination's launcher already has on disk into the server
+ *  thumbnail cache, so it shows across the app and can be pushed to other
  *  launchers. Only fills games with no cached art — never clobbers user-set or
- *  previously-imported art. ES-DE only for now. */
+ *  previously-imported art. Matches images to games by ROM filename stem, so it
+ *  works regardless of the launcher's folder naming (ES-DE downloaded_media or
+ *  muOS catalogue). */
 export async function harvestLauncherArt(
   cfg: ConfigFile,
   destCacheKey: string,
@@ -44,92 +40,68 @@ export async function harvestLauncherArt(
   const empty: ArtHarvestResult = { scanned: 0, imported: 0, skippedExisting: 0, unmatched: 0 };
 
   const kind = launcherKindForCacheKey(cfg, destCacheKey);
-  if (kind !== "es-de") {
-    return { ...empty, reason: "Art import is only supported for ES-DE destinations" };
+  if (kind !== "es-de" && kind !== "muos") {
+    return { ...empty, reason: "Art import needs an ES-DE or muOS destination" };
   }
-
   const roots = await resolveRomSourceRoots(cfg);
   const dest = roots.get(destCacheKey);
   if (!dest?.mounted) return { ...empty, reason: "Destination is not mounted" };
-  const mediaDir = esDeSubdir(dest, "downloaded_media");
-  if (!mediaDir) return { ...empty, reason: "ES-DE folder is not set on this destination" };
-  if (!existsSync(mediaDir)) {
-    return { ...empty, reason: `No downloaded_media folder found at ${mediaDir}` };
-  }
 
-  // Map (system, rom-filename-without-extension) → gameKey from the catalog.
-  // Transfers copy canonical filenames, so ES-DE's media (named after the ROM
-  // file) lines up with our variant filenames.
+  const { layout, reason } = await getArtLayout(kind, dest);
+  if (!layout) return { ...empty, reason };
+
+  // ROM filename stem (lower, no extension) → gameKey. gameKey is name-based, so
+  // a stem maps to one game even across systems.
   const { games } = await computeLibrary(cfg);
-  const byNameKey = new Map<string, string>();
+  const byStem = new Map<string, string>();
   for (const game of games) {
     for (const v of game.variants) {
-      byNameKey.set(nameKey(v.systemKey, v.filename), game.gameKey);
+      byStem.set(basename(v.filename, extname(v.filename)).toLowerCase(), game.gameKey);
     }
   }
 
-  const result: ArtHarvestResult = { ...empty, mediaDir };
-  const done = new Set<string>(); // gameKeys handled this run (priority dedupe)
+  const result: ArtHarvestResult = { ...empty };
+  const done = new Set<string>(); // gameKeys handled this run (first art type wins)
 
-  let systemDirs: string[];
-  try {
-    systemDirs = (await readdir(mediaDir, { withFileTypes: true }))
-      .filter((d) => d.isDirectory())
-      .map((d) => d.name);
-  } catch {
-    return { ...result, reason: `Could not read ${mediaDir}` };
-  }
+  for (const dir of layout.harvestDirs) {
+    let files: string[];
+    try {
+      files = await readdir(dir);
+    } catch {
+      continue;
+    }
+    for (const file of files) {
+      const ext = extname(file).toLowerCase();
+      const mime = MIME_BY_EXT[ext];
+      if (!mime) continue;
+      result.scanned++;
 
-  for (const systemKey of systemDirs) {
-    for (const artType of ART_TYPES_BY_PREFERENCE) {
-      const dir = join(mediaDir, systemKey, artType);
-      if (!existsSync(dir)) continue;
-      let files: string[];
-      try {
-        files = await readdir(dir);
-      } catch {
+      const gameKey = byStem.get(basename(file, extname(file)).toLowerCase());
+      if (!gameKey) {
+        result.unmatched++;
         continue;
       }
-      for (const file of files) {
-        const ext = extname(file).toLowerCase();
-        const mime = MIME_BY_EXT[ext];
-        if (!mime) continue;
-        result.scanned++;
+      if (done.has(gameKey)) continue;
 
-        const gameKey = byNameKey.get(nameKey(systemKey, file));
-        if (!gameKey) {
-          result.unmatched++;
-          continue;
-        }
-        if (done.has(gameKey)) continue;
+      if (await hasThumbnail(gameKey)) {
+        result.skippedExisting++;
+        done.add(gameKey);
+        continue;
+      }
 
-        if (await hasThumbnail(gameKey)) {
-          result.skippedExisting++;
-          done.add(gameKey);
-          continue;
-        }
-
-        const abs = join(dir, file);
-        try {
-          const s = await stat(abs);
-          if (s.size > MAX_THUMBNAIL_BYTES) continue;
-          const bytes = await readFile(abs);
-          await saveThumbnail(gameKey, bytes, mime);
-          result.imported++;
-          done.add(gameKey);
-        } catch {
-          // best-effort; skip unreadable files
-        }
+      const abs = join(dir, file);
+      try {
+        const s = await stat(abs);
+        if (s.size > MAX_THUMBNAIL_BYTES) continue;
+        const bytes = await readFile(abs);
+        await saveThumbnail(gameKey, bytes, mime);
+        result.imported++;
+        done.add(gameKey);
+      } catch {
+        // best-effort; skip unreadable files
       }
     }
   }
 
   return result;
-}
-
-/** Identity for art matching: system folder + filename minus its extension,
- *  lower-cased. ES-DE names media after the ROM file sans extension. */
-function nameKey(systemKey: string, filename: string): string {
-  const stem = basename(filename, extname(filename)).toLowerCase();
-  return `${systemKey.toLowerCase()}/${stem}`;
 }

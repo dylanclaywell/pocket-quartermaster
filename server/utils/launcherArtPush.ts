@@ -5,24 +5,14 @@ import { Jimp } from "jimp";
 import type { ConfigFile } from "./types";
 import { computeLibrary } from "./romLibrary";
 import { resolveRomSourceRoots } from "./romTransfer";
-import { esDeSubdir, launcherKindForCacheKey } from "./launcherMetadata";
+import { launcherKindForCacheKey } from "./launcherMetadata";
+import { getArtLayout } from "./launcherArt";
 import { findThumbnailPath, safeBaseName, thumbnailBaseSet } from "./thumbnails";
 
 const IMAGE_EXTS = [".png", ".jpg", ".jpeg", ".webp"];
 
-export interface ArtPushResult {
-  /** Absolute downloaded_media dir written under, for messaging. */
-  mediaDir?: string;
-  /** Cover files written. */
-  pushed: number;
-  /** Games skipped because the server has no cached art for them. */
-  skippedNoArt: number;
-  /** Requested games skipped because they aren't installed on the destination. */
-  skippedNotInstalled: number;
-  /** Max edge (px) art was downscaled to, if any. */
-  resizedTo?: number;
-  /** Set when nothing could be written (launcher mismatch / not mounted / no folder). */
-  reason?: string;
+function isArtLauncher(kind: string | undefined): boolean {
+  return kind === "es-de" || kind === "muos";
 }
 
 /** One installed-on-destination game in a push plan. `coverExists` means the
@@ -37,8 +27,8 @@ export interface ArtPlanGame {
 }
 
 export interface ArtPlan {
-  /** True when the destination is mounted and its ES-DE folder is set, so
-      coverExists is meaningful. When false, everything reads as "needed". */
+  /** True when art locations could be resolved on the device, so coverExists is
+      meaningful. When false, everything reads as "needed". */
   reconciled: boolean;
   reason?: string;
   games: ArtPlanGame[];
@@ -47,22 +37,16 @@ export interface ArtPlan {
 /** Reconcile what art a destination still needs: every game installed there,
  *  flagged with whether the server has cached art and whether the device already
  *  has a cover. Cover presence is matched on the installed ROM filename stem. */
-export async function artPushPlan(
-  cfg: ConfigFile,
-  destCacheKey: string,
-): Promise<ArtPlan> {
+export async function artPushPlan(cfg: ConfigFile, destCacheKey: string): Promise<ArtPlan> {
   const kind = launcherKindForCacheKey(cfg, destCacheKey);
-  if (kind !== "es-de") {
-    return { reconciled: false, reason: "Art is only supported for ES-DE destinations", games: [] };
+  if (!isArtLauncher(kind)) {
+    return { reconciled: false, reason: "Art needs an ES-DE or muOS destination", games: [] };
   }
   const roots = await resolveRomSourceRoots(cfg);
   const dest = roots.get(destCacheKey);
-  const mediaDir = dest?.mounted ? esDeSubdir(dest, "downloaded_media") : undefined;
-  const reason = !dest?.mounted
-    ? "Destination not mounted — can't detect existing covers; all shown as needed"
-    : !mediaDir
-      ? "ES-DE folder not set — can't detect existing covers; all shown as needed"
-      : undefined;
+  const { layout, reason } = dest?.mounted
+    ? await getArtLayout(kind!, dest)
+    : { layout: undefined, reason: "Destination not mounted" };
 
   const { games } = await computeLibrary(cfg);
   const thumbs = await thumbnailBaseSet();
@@ -75,12 +59,14 @@ export async function artPushPlan(
     const hasThumbnail = thumbs.has(safeBaseName(game.gameKey));
 
     let coverExists = false;
-    if (mediaDir && hasThumbnail) {
-      const coversDir = join(mediaDir, game.systemKey, "covers");
-      coverExists = installed.some((fn) => {
-        const stem = basename(fn, extname(fn));
-        return IMAGE_EXTS.some((e) => existsSync(join(coversDir, `${stem}${e}`)));
-      });
+    if (layout && hasThumbnail) {
+      const boxDir = layout.boxDir(game.systemKey);
+      if (boxDir) {
+        coverExists = installed.some((fn) => {
+          const stem = basename(fn, extname(fn));
+          return IMAGE_EXTS.some((e) => existsSync(join(boxDir, `${stem}${e}`)));
+        });
+      }
     }
     out.push({
       gameKey: game.gameKey,
@@ -90,36 +76,61 @@ export async function artPushPlan(
       coverExists,
     });
   }
-  return { reconciled: Boolean(mediaDir), reason, games: out };
+  return {
+    reconciled: Boolean(layout),
+    reason: layout ? undefined : reason,
+    games: out,
+  };
+}
+
+export interface ArtPushResult {
+  /** Cover files written. */
+  pushed: number;
+  /** Games skipped because the server has no cached art for them. */
+  skippedNoArt: number;
+  /** Requested games skipped because they aren't installed on the destination. */
+  skippedNotInstalled: number;
+  /** Games skipped because the destination has no launcher folder for that
+      system (e.g. muOS catalogue folder doesn't exist). */
+  skippedNoFolder: number;
+  /** Max edge (px) art was downscaled to, if any. */
+  resizedTo?: number;
+  /** Set when nothing could be written (launcher mismatch / not mounted / no folder). */
+  reason?: string;
 }
 
 /** Push cached box art to a destination's launcher, naming each cover after the
  *  ROM file installed there so the launcher matches it. Optionally downscales to
  *  a max edge (per-device setting or override) for small screens — re-encoded as
- *  PNG. ES-DE only for now. */
+ *  PNG. Works for ES-DE (downloaded_media) and muOS (catalogue box). */
 export async function pushLauncherArt(
   cfg: ConfigFile,
   destCacheKey: string,
   gameKeys: string[] | undefined,
   maxEdgeOverride?: number,
 ): Promise<ArtPushResult> {
-  const empty: ArtPushResult = { pushed: 0, skippedNoArt: 0, skippedNotInstalled: 0 };
+  const empty: ArtPushResult = {
+    pushed: 0,
+    skippedNoArt: 0,
+    skippedNotInstalled: 0,
+    skippedNoFolder: 0,
+  };
 
   const kind = launcherKindForCacheKey(cfg, destCacheKey);
-  if (kind !== "es-de") {
-    return { ...empty, reason: "Art push is only supported for ES-DE destinations" };
+  if (!isArtLauncher(kind)) {
+    return { ...empty, reason: "Art push needs an ES-DE or muOS destination" };
   }
   const roots = await resolveRomSourceRoots(cfg);
   const dest = roots.get(destCacheKey);
   if (!dest?.mounted) return { ...empty, reason: "Destination is not mounted" };
-  const mediaDir = esDeSubdir(dest, "downloaded_media");
-  if (!mediaDir) return { ...empty, reason: "ES-DE folder is not set on this destination" };
+  const { layout, reason } = await getArtLayout(kind!, dest);
+  if (!layout) return { ...empty, reason };
 
   const maxEdge = Math.max(0, Math.floor(maxEdgeOverride ?? dest.artMaxEdgePx ?? 0));
 
   const { games } = await computeLibrary(cfg);
   const wanted = gameKeys ? new Set(gameKeys) : null;
-  const result: ArtPushResult = { ...empty, mediaDir, resizedTo: maxEdge || undefined };
+  const result: ArtPushResult = { ...empty, resizedTo: maxEdge || undefined };
 
   for (const game of games) {
     if (wanted && !wanted.has(game.gameKey)) continue;
@@ -134,11 +145,15 @@ export async function pushLauncherArt(
       result.skippedNoArt++;
       continue;
     }
+    const boxDir = layout.boxDir(game.systemKey);
+    if (!boxDir) {
+      result.skippedNoFolder++;
+      continue;
+    }
 
     const srcBytes = await readFile(thumb.absPath);
 
-    // Downscale only when a cap is set and the art is larger than it; otherwise
-    // ship the original bytes untouched.
+    // Downscale only when a cap is set and the art is larger than it.
     let resized: Buffer | null = null;
     if (maxEdge > 0) {
       try {
@@ -152,12 +167,11 @@ export async function pushLauncherArt(
       }
     }
 
-    const coversDir = join(mediaDir, game.systemKey, "covers");
-    await mkdir(coversDir, { recursive: true });
+    await mkdir(boxDir, { recursive: true });
     for (const filename of installed) {
       const stem = basename(filename, extname(filename));
-      if (resized) await writeCover(coversDir, stem, ".png", resized);
-      else await writeCover(coversDir, stem, thumb.ext, srcBytes);
+      if (resized) await writeCover(boxDir, stem, ".png", resized);
+      else await writeCover(boxDir, stem, thumb.ext, srcBytes);
       result.pushed++;
     }
   }

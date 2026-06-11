@@ -725,21 +725,53 @@ async function runRomsScan() {
             v-if="device.muosRootRelPath && !editingMuosRoot"
             class="flex flex-col gap-2 border-t border-border pt-2"
           >
-            <span class="label">Names</span>
-            <button
-              class="btn-secondary self-start text-sm"
-              :disabled="!device.mounted || syncingNames"
-              :title="device.mounted ? '' : 'Mount this device first'"
-              @click="syncNames"
-            >
-              <Spinner v-if="syncingNames" size="sm" />
-              <span>{{ syncingNames ? "Syncing…" : "Sync names to launcher" }}</span>
-            </button>
+            <span class="label">Names &amp; art</span>
+            <div class="flex flex-wrap gap-2">
+              <button
+                class="btn-secondary text-sm"
+                :disabled="!device.mounted || syncingNames || harvestingArt"
+                :title="device.mounted ? '' : 'Mount this device first'"
+                @click="syncNames"
+              >
+                <Spinner v-if="syncingNames" size="sm" />
+                <span>{{ syncingNames ? "Syncing…" : "Sync names to launcher" }}</span>
+              </button>
+              <button
+                class="btn-secondary text-sm"
+                :disabled="!device.mounted || harvestingArt || syncingNames"
+                :title="device.mounted ? '' : 'Mount this device first'"
+                @click="harvestArt"
+              >
+                <Spinner v-if="harvestingArt" size="sm" />
+                <span>{{ harvestingArt ? "Importing…" : "Import art to app" }}</span>
+              </button>
+            </div>
             <p class="text-xs text-fg-dim">
-              Writes clean display names for games installed here into
-              <span class="font-mono">info/name/global.json</span>. Box art sync is
-              coming next.
+              <span class="font-medium text-fg">Sync names</span> writes clean display
+              names into <span class="font-mono">info/name/global.json</span>.
+              <span class="font-medium text-fg">Import art</span> pulls muOS box art into
+              the app. Push art to this device from the Transfer page's Art tab.
             </p>
+
+            <div class="flex flex-col gap-1 pt-1">
+              <span class="label">Push art max size (px)</span>
+              <div class="flex gap-2">
+                <input
+                  v-model="artMaxEdgeDraft"
+                  class="input flex-1"
+                  inputmode="numeric"
+                  placeholder="Blank = full size"
+                />
+                <button
+                  class="btn-secondary text-sm"
+                  :disabled="artSizeBusy"
+                  @click="applyArtMaxEdge"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+
             <p v-if="launcherNote" class="text-xs text-ok">{{ launcherNote }}</p>
           </div>
         </div>
