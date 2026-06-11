@@ -23,6 +23,7 @@ export default defineEventHandler(async (event) => {
     launcherKind?: string | null;
     esDeRootRelPath?: string | null;
     artMaxEdgePx?: number | null;
+    muosRootRelPath?: string | null;
   }>(event);
 
   const cfg = await loadConfig();
@@ -110,6 +111,21 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: "artMaxEdgePx must be a positive number or null",
+      });
+    }
+  }
+
+  if (body && "muosRootRelPath" in body) {
+    if (body.muosRootRelPath === null || body.muosRootRelPath === "") {
+      delete dev.muosRootRelPath;
+    } else if (typeof body.muosRootRelPath === "string") {
+      const trimmed = body.muosRootRelPath.trim();
+      dev.muosRootRelPath = trimmed ? normalizeRelPath(trimmed) : undefined;
+      if (!dev.muosRootRelPath) delete dev.muosRootRelPath;
+    } else {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "muosRootRelPath must be a string or null",
       });
     }
   }

@@ -44,6 +44,11 @@ export interface DeviceIdentity {
       device — for small screens that don't normalize art themselves. Unset or 0
       = push art at full size. */
   artMaxEdgePx?: number;
+  /** Forward-slash path, relative to the mount root, of the `MUOS` folder (the
+      one containing `info/`). muOS reads display names from
+      `info/name/global.json` and box art from `info/catalogue/`. Required for
+      the muOS name/art features; ignored for other launchers. */
+  muosRootRelPath?: string;
 }
 
 /** Frontend running on a destination, selecting which launcher-metadata file
@@ -124,6 +129,9 @@ export interface VirtualMount {
   /** Optional max edge (px) to downscale box art to when pushing here. Unset/0 =
       full size. */
   artMaxEdgePx?: number;
+  /** Forward-slash path, relative to this mount, of the `MUOS` folder (containing
+      `info/`). Required for the muOS name/art features. */
+  muosRootRelPath?: string;
 }
 
 /** User-editable, persisted per-game data. Keyed by `gameKey`

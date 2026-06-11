@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { dirname, join, resolve, sep } from "node:path";
+import { basename, dirname, extname, join, resolve, sep } from "node:path";
 import { XMLBuilder, XMLParser } from "fast-xml-parser";
 import type { ConfigFile, LauncherKind } from "./types";
 import { romDeviceCacheKey, romVirtualMountCacheKey } from "./romLibraryCache";
@@ -41,7 +41,7 @@ export function esDeSubdir(
  *  Returns a `reason` instead of a `root` when not writable yet. */
 export function metadataTargetRoot(
   kind: LauncherKind,
-  dest: { mountPath?: string; esDeRootRelPath?: string },
+  dest: { mountPath?: string; esDeRootRelPath?: string; muosRootRelPath?: string },
 ): { root?: string; reason?: string } {
   if (!dest.mountPath) return { reason: "destination is not mounted" };
   if (kind === "es-de") {
@@ -49,8 +49,9 @@ export function metadataTargetRoot(
     if (!root) return { reason: "ES-DE folder is not set on this destination" };
     return { root };
   }
-  // muOS (future) writes under MUOS/info relative to the mount root.
-  return { root: dest.mountPath };
+  // muOS reads names + art under <MUOS>/info; the writer keys off that dir.
+  if (!dest.muosRootRelPath) return { reason: "muOS folder is not set on this destination" };
+  return { root: join(dest.mountPath, dest.muosRootRelPath.split("/").join(sep), "info") };
 }
 
 /** Resolve a destination's launcher from its ROM cache key, scanning both
@@ -77,16 +78,7 @@ export async function writeLauncherMetadata(
   entries: MetadataEntry[],
 ): Promise<MetadataWriteResult[]> {
   if (kind === "es-de") return writeEsDe(destRoot, entries);
-  // muOS uses MUOS/info catalogue files, not XML. Deferred until its
-  // name-override format is confirmed; report so the UI can say names weren't
-  // written rather than silently doing nothing.
-  return bySystem(entries).map(([systemKey, list]) => ({
-    systemKey,
-    ok: false,
-    written: 0,
-    total: list.length,
-    error: "muOS name writing is not implemented yet",
-  }));
+  return writeMuos(destRoot, entries);
 }
 
 /** Group entries by their system folder, preserving first-seen order. */
@@ -196,4 +188,58 @@ async function upsertEsDeGamelist(
   await writeFile(tmp, xml, "utf8");
   await rename(tmp, file);
   return written;
+}
+
+// muOS resolves a game's display name from <MUOS>/info/name/<content-dir>.json,
+// falling back to name/global.json — a flat JSON object keyed by the lowercased
+// ROM filename without extension (confirmed in muxshare.c: resolve_friendly_name).
+// We write global.json so it applies regardless of the device's folder names.
+// The value is read directly at runtime, so no lookup-table generation is needed.
+
+async function writeMuos(
+  infoRoot: string,
+  entries: MetadataEntry[],
+): Promise<MetadataWriteResult[]> {
+  const file = join(infoRoot, "name", "global.json");
+
+  let names: Record<string, string> = {};
+  if (existsSync(file)) {
+    try {
+      const parsed = JSON.parse(await readFile(file, "utf8"));
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        names = parsed as Record<string, string>;
+      }
+    } catch {
+      // Malformed file — start fresh rather than throw.
+    }
+  }
+
+  let written = 0;
+  for (const e of entries) {
+    const key = basename(e.filename, extname(e.filename)).toLowerCase();
+    if (!key) continue;
+    if (names[key] !== e.displayName) {
+      names[key] = e.displayName;
+      written++;
+    }
+  }
+
+  const result: MetadataWriteResult = {
+    systemKey: "names",
+    ok: true,
+    written,
+    total: entries.length,
+  };
+
+  if (written === 0 && existsSync(file)) return [result];
+
+  try {
+    await mkdir(dirname(file), { recursive: true });
+    const tmp = `${file}.tmp`;
+    await writeFile(tmp, `${JSON.stringify(names, null, 2)}\n`, "utf8");
+    await rename(tmp, file);
+  } catch (err) {
+    return [{ ...result, ok: false, written: 0, error: (err as Error).message }];
+  }
+  return [result];
 }

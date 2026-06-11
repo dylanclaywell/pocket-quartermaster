@@ -22,6 +22,8 @@ export interface SourceRoot {
   esDeRootRelPath?: string;
   /** Optional max edge (px) to downscale pushed box art to. Unset/0 = full. */
   artMaxEdgePx?: number;
+  /** Forward-slash path of the `MUOS` folder relative to mountPath, if set. */
+  muosRootRelPath?: string;
 }
 
 /** Resolve every configured ROM source to its current absolute root path.
@@ -48,6 +50,7 @@ export async function resolveRomSourceRoots(cfg: ConfigFile): Promise<Map<string
       mountPath,
       esDeRootRelPath: dev.esDeRootRelPath,
       artMaxEdgePx: dev.artMaxEdgePx,
+      muosRootRelPath: dev.muosRootRelPath,
     });
   }
   for (const vm of cfg.virtualMounts) {
@@ -63,6 +66,7 @@ export async function resolveRomSourceRoots(cfg: ConfigFile): Promise<Map<string
       mountPath: exists ? absVm : undefined,
       esDeRootRelPath: vm.esDeRootRelPath,
       artMaxEdgePx: vm.artMaxEdgePx,
+      muosRootRelPath: vm.muosRootRelPath,
     });
   }
   return roots;

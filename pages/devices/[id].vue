@@ -15,6 +15,7 @@ interface DeviceData {
   launcherKind?: "es-de" | "muos";
   esDeRootRelPath?: string;
   artMaxEdgePx?: number;
+  muosRootRelPath?: string;
 }
 interface SlotRef {
   profileName: string;
@@ -264,6 +265,33 @@ async function syncNames() {
     romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
   } finally {
     syncingNames.value = false;
+  }
+}
+
+// muOS data folder (the MUOS/ dir). muOS reads names + art from under info/.
+const editingMuosRoot = ref(false);
+const muosRootBusy = ref(false);
+
+function openMuosRootEditor() {
+  if (!device.value?.mounted) return;
+  editingMuosRoot.value = true;
+  romsError.value = null;
+}
+
+async function applyMuosRoot(value: string | null) {
+  muosRootBusy.value = true;
+  romsError.value = null;
+  try {
+    await $fetch(`/api/devices/${id.value}`, {
+      method: "PATCH",
+      body: { muosRootRelPath: value },
+    });
+    editingMuosRoot.value = false;
+    await refresh();
+  } catch (e) {
+    romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    muosRootBusy.value = false;
   }
 }
 
@@ -640,6 +668,80 @@ async function runRomsScan() {
               </li>
             </ol>
           </details>
+        </div>
+
+        <div
+          v-if="device.romsRootRelPath && !editingRoms && device.launcherKind === 'muos'"
+          class="flex flex-col gap-2 rounded-xl bg-surface-2 p-3"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="label">muOS folder</span>
+            <span
+              v-if="device.muosRootRelPath"
+              class="pill bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok"
+              >set</span
+            >
+            <span v-else class="pill bg-surface-1 text-fg-dim">not set</span>
+          </div>
+          <p class="break-all text-sm text-fg-dim">
+            {{
+              device.muosRootRelPath
+                ? `/${device.muosRootRelPath}`
+                : "Point to the MUOS folder on the SD (the one containing info/). muOS reads clean game names from info/name/global.json."
+            }}
+          </p>
+
+          <div v-if="editingMuosRoot" class="flex flex-col gap-2">
+            <FolderPicker
+              v-if="device.currentMountPath"
+              :mount-path="device.currentMountPath"
+              :initial-rel-path="device.muosRootRelPath"
+              commit-label="Use this folder"
+              @select="applyMuosRoot($event)"
+              @cancel="editingMuosRoot = false"
+            />
+          </div>
+
+          <div v-if="!editingMuosRoot" class="flex flex-wrap gap-2">
+            <button
+              class="btn-secondary text-sm"
+              :disabled="!device.mounted || muosRootBusy"
+              :title="device.mounted ? '' : 'Mount this device to browse'"
+              @click="openMuosRootEditor"
+            >
+              {{ device.muosRootRelPath ? "Change folder" : "Set muOS folder" }}
+            </button>
+            <button
+              v-if="device.muosRootRelPath"
+              class="btn-ghost text-sm"
+              :disabled="muosRootBusy"
+              @click="applyMuosRoot(null)"
+            >
+              Clear
+            </button>
+          </div>
+
+          <div
+            v-if="device.muosRootRelPath && !editingMuosRoot"
+            class="flex flex-col gap-2 border-t border-border pt-2"
+          >
+            <span class="label">Names</span>
+            <button
+              class="btn-secondary self-start text-sm"
+              :disabled="!device.mounted || syncingNames"
+              :title="device.mounted ? '' : 'Mount this device first'"
+              @click="syncNames"
+            >
+              <Spinner v-if="syncingNames" size="sm" />
+              <span>{{ syncingNames ? "Syncing…" : "Sync names to launcher" }}</span>
+            </button>
+            <p class="text-xs text-fg-dim">
+              Writes clean display names for games installed here into
+              <span class="font-mono">info/name/global.json</span>. Box art sync is
+              coming next.
+            </p>
+            <p v-if="launcherNote" class="text-xs text-ok">{{ launcherNote }}</p>
+          </div>
         </div>
 
         <p

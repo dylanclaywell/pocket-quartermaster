@@ -20,6 +20,7 @@ export default defineEventHandler(async (event) => {
     launcherKind?: string | null;
     esDeRootRelPath?: string | null;
     artMaxEdgePx?: number | null;
+    muosRootRelPath?: string | null;
   }>(event);
   const raw = body?.path?.trim();
   if (!raw) throw createError({ statusCode: 400, statusMessage: "path required" });
@@ -112,6 +113,21 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: "artMaxEdgePx must be a positive number or null",
+      });
+    }
+  }
+
+  if (body && "muosRootRelPath" in body) {
+    if (body.muosRootRelPath === null || body.muosRootRelPath === "") {
+      delete entry.muosRootRelPath;
+    } else if (typeof body.muosRootRelPath === "string") {
+      const trimmed = body.muosRootRelPath.trim();
+      entry.muosRootRelPath = trimmed ? normalizeRelPath(trimmed) : undefined;
+      if (!entry.muosRootRelPath) delete entry.muosRootRelPath;
+    } else {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "muosRootRelPath must be a string or null",
       });
     }
   }
