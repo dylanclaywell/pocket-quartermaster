@@ -6,7 +6,7 @@ import type { ConfigFile } from "./types";
 import { computeLibrary } from "./romLibrary";
 import { resolveRomSourceRoots } from "./romTransfer";
 import { esDeSubdir, launcherKindForCacheKey } from "./launcherMetadata";
-import { findThumbnailPath } from "./thumbnails";
+import { findThumbnailPath, safeBaseName, thumbnailBaseSet } from "./thumbnails";
 
 const IMAGE_EXTS = [".png", ".jpg", ".jpeg", ".webp"];
 
@@ -23,6 +23,74 @@ export interface ArtPushResult {
   resizedTo?: number;
   /** Set when nothing could be written (launcher mismatch / not mounted / no folder). */
   reason?: string;
+}
+
+/** One installed-on-destination game in a push plan. `coverExists` means the
+ *  device already has a cover for it (matched by the installed ROM filename, not
+ *  by image content — no CRC yet), so pushing would duplicate. */
+export interface ArtPlanGame {
+  gameKey: string;
+  displayName: string;
+  system: string;
+  hasThumbnail: boolean;
+  coverExists: boolean;
+}
+
+export interface ArtPlan {
+  /** True when the destination is mounted and its ES-DE folder is set, so
+      coverExists is meaningful. When false, everything reads as "needed". */
+  reconciled: boolean;
+  reason?: string;
+  games: ArtPlanGame[];
+}
+
+/** Reconcile what art a destination still needs: every game installed there,
+ *  flagged with whether the server has cached art and whether the device already
+ *  has a cover. Cover presence is matched on the installed ROM filename stem. */
+export async function artPushPlan(
+  cfg: ConfigFile,
+  destCacheKey: string,
+): Promise<ArtPlan> {
+  const kind = launcherKindForCacheKey(cfg, destCacheKey);
+  if (kind !== "es-de") {
+    return { reconciled: false, reason: "Art is only supported for ES-DE destinations", games: [] };
+  }
+  const roots = await resolveRomSourceRoots(cfg);
+  const dest = roots.get(destCacheKey);
+  const mediaDir = dest?.mounted ? esDeSubdir(dest, "downloaded_media") : undefined;
+  const reason = !dest?.mounted
+    ? "Destination not mounted — can't detect existing covers; all shown as needed"
+    : !mediaDir
+      ? "ES-DE folder not set — can't detect existing covers; all shown as needed"
+      : undefined;
+
+  const { games } = await computeLibrary(cfg);
+  const thumbs = await thumbnailBaseSet();
+
+  const out: ArtPlanGame[] = [];
+  for (const game of games) {
+    const d = game.destinations.find((x) => x.cacheKey === destCacheKey);
+    const installed = d?.installedFilenames ?? [];
+    if (installed.length === 0) continue;
+    const hasThumbnail = thumbs.has(safeBaseName(game.gameKey));
+
+    let coverExists = false;
+    if (mediaDir && hasThumbnail) {
+      const coversDir = join(mediaDir, game.systemKey, "covers");
+      coverExists = installed.some((fn) => {
+        const stem = basename(fn, extname(fn));
+        return IMAGE_EXTS.some((e) => existsSync(join(coversDir, `${stem}${e}`)));
+      });
+    }
+    out.push({
+      gameKey: game.gameKey,
+      displayName: game.displayName,
+      system: game.system,
+      hasThumbnail,
+      coverExists,
+    });
+  }
+  return { reconciled: Boolean(mediaDir), reason, games: out };
 }
 
 /** Push cached box art to a destination's launcher, naming each cover after the
