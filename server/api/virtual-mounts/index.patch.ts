@@ -19,6 +19,7 @@ export default defineEventHandler(async (event) => {
     romsRootRelPath?: string | null;
     launcherKind?: string | null;
     esDeRootRelPath?: string | null;
+    artMaxEdgePx?: number | null;
   }>(event);
   const raw = body?.path?.trim();
   if (!raw) throw createError({ statusCode: 400, statusMessage: "path required" });
@@ -94,6 +95,23 @@ export default defineEventHandler(async (event) => {
       throw createError({
         statusCode: 400,
         statusMessage: "esDeRootRelPath must be a string or null",
+      });
+    }
+  }
+
+  if (body && "artMaxEdgePx" in body) {
+    if (body.artMaxEdgePx === null || body.artMaxEdgePx === 0) {
+      delete entry.artMaxEdgePx;
+    } else if (
+      typeof body.artMaxEdgePx === "number" &&
+      Number.isFinite(body.artMaxEdgePx) &&
+      body.artMaxEdgePx > 0
+    ) {
+      entry.artMaxEdgePx = Math.floor(body.artMaxEdgePx);
+    } else {
+      throw createError({
+        statusCode: 400,
+        statusMessage: "artMaxEdgePx must be a positive number or null",
       });
     }
   }

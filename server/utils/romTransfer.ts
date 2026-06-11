@@ -20,6 +20,8 @@ export interface SourceRoot {
   /** Forward-slash ES-DE root path (the `ES-DE/` folder) relative to mountPath,
       if configured. Gamelists and downloaded_media live under it. */
   esDeRootRelPath?: string;
+  /** Optional max edge (px) to downscale pushed box art to. Unset/0 = full. */
+  artMaxEdgePx?: number;
 }
 
 /** Resolve every configured ROM source to its current absolute root path.
@@ -45,6 +47,7 @@ export async function resolveRomSourceRoots(cfg: ConfigFile): Promise<Map<string
       mounted: Boolean(mountPath),
       mountPath,
       esDeRootRelPath: dev.esDeRootRelPath,
+      artMaxEdgePx: dev.artMaxEdgePx,
     });
   }
   for (const vm of cfg.virtualMounts) {
@@ -59,6 +62,7 @@ export async function resolveRomSourceRoots(cfg: ConfigFile): Promise<Map<string
       mounted: exists,
       mountPath: exists ? absVm : undefined,
       esDeRootRelPath: vm.esDeRootRelPath,
+      artMaxEdgePx: vm.artMaxEdgePx,
     });
   }
   return roots;

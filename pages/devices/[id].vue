@@ -14,6 +14,7 @@ interface DeviceData {
   romsCacheKey: string;
   launcherKind?: "es-de" | "muos";
   esDeRootRelPath?: string;
+  artMaxEdgePx?: number;
 }
 interface SlotRef {
   profileName: string;
@@ -263,6 +264,34 @@ async function syncNames() {
     romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
   } finally {
     syncingNames.value = false;
+  }
+}
+
+// Per-device art downscale cap (blank = full size).
+const artMaxEdgeDraft = ref<string>("");
+const artSizeBusy = ref(false);
+watch(
+  () => device.value?.artMaxEdgePx,
+  (v) => {
+    artMaxEdgeDraft.value = v ? String(v) : "";
+  },
+  { immediate: true },
+);
+
+async function applyArtMaxEdge() {
+  artSizeBusy.value = true;
+  romsError.value = null;
+  try {
+    const n = parseInt(artMaxEdgeDraft.value, 10);
+    await $fetch(`/api/devices/${id.value}`, {
+      method: "PATCH",
+      body: { artMaxEdgePx: Number.isFinite(n) && n > 0 ? n : null },
+    });
+    await refresh();
+  } catch (e) {
+    romsError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    artSizeBusy.value = false;
   }
 }
 
@@ -556,6 +585,30 @@ async function runRomsScan() {
               <span class="font-medium text-fg">Import art</span> pulls ES-DE's scraped box art
               into the app so it shows in activity and the library.
             </p>
+
+            <div class="flex flex-col gap-1 pt-1">
+              <span class="label">Push art max size (px)</span>
+              <div class="flex gap-2">
+                <input
+                  v-model="artMaxEdgeDraft"
+                  class="input flex-1"
+                  inputmode="numeric"
+                  placeholder="Blank = full size"
+                />
+                <button
+                  class="btn-secondary text-sm"
+                  :disabled="artSizeBusy"
+                  @click="applyArtMaxEdge"
+                >
+                  Save
+                </button>
+              </div>
+              <span class="text-xs text-fg-dim">
+                Box art pushed to this device is downscaled to this longest edge —
+                set it for small screens that don't resize art themselves.
+              </span>
+            </div>
+
             <p v-if="launcherNote" class="text-xs text-ok">{{ launcherNote }}</p>
           </div>
 

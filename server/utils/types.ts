@@ -40,6 +40,10 @@ export interface DeviceIdentity {
       relocated onto the SD for this to be reachable. Required for the ES-DE
       name/art features; ignored for other launchers. */
   esDeRootRelPath?: string;
+  /** Optional max edge (px) to downscale box art to when pushing it to this
+      device — for small screens that don't normalize art themselves. Unset or 0
+      = push art at full size. */
+  artMaxEdgePx?: number;
 }
 
 /** Frontend running on a destination, selecting which launcher-metadata file
@@ -117,6 +121,9 @@ export interface VirtualMount {
       directory (the `ES-DE/` folder). Gamelists and downloaded_media live under
       it. Required for the ES-DE name/art features. */
   esDeRootRelPath?: string;
+  /** Optional max edge (px) to downscale box art to when pushing here. Unset/0 =
+      full size. */
+  artMaxEdgePx?: number;
 }
 
 /** User-editable, persisted per-game data. Keyed by `gameKey`
