@@ -18,6 +18,7 @@ interface KnownDevice {
   registeredAt: string;
   mounted: boolean;
   currentMountPath?: string;
+  ejectable?: boolean;
   retroarchActivityDir?: string;
   activityCacheKey: string;
 }
@@ -111,6 +112,29 @@ const orphanedMounts = computed(() =>
 );
 
 const adoptingMount = ref<string | null>(null);
+
+// Per-device eject state, keyed by device id.
+const ejectingId = ref<string | null>(null);
+const ejectNote = ref<string | null>(null);
+
+async function ejectDevice(d: KnownDevice) {
+  if (!d.ejectable || ejectingId.value) return;
+  if (!confirm(`Eject "${d.nickname}"? Make sure no transfer is running.`)) return;
+  ejectingId.value = d.id;
+  error.value = null;
+  ejectNote.value = null;
+  try {
+    const res = await $fetch<{ message: string }>(`/api/devices/${d.id}/eject`, {
+      method: "POST",
+    });
+    ejectNote.value = `${d.nickname}: ${res.message}`;
+    await refresh();
+  } catch (e) {
+    error.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    ejectingId.value = null;
+  }
+}
 
 async function reconnect(m: MountedDevice) {
   adoptingMount.value = m.mountPath;
@@ -381,8 +405,8 @@ async function scanVmRoms(v: VirtualMount) {
         <Spinner /> <span>Loading…</span>
       </div>
       <ul v-else class="flex flex-col gap-2">
-        <li v-for="d in known" :key="d.id">
-          <NuxtLink :to="`/devices/${d.id}`" class="row-button">
+        <li v-for="d in known" :key="d.id" class="flex items-stretch gap-2">
+          <NuxtLink :to="`/devices/${d.id}`" class="row-button flex-1">
             <div class="flex min-w-0 flex-1 flex-col">
               <span class="truncate font-semibold">{{ d.nickname }}</span>
               <span class="truncate text-xs text-fg-dim">
@@ -404,11 +428,22 @@ async function scanVmRoms(v: VirtualMount) {
             >
             <span aria-hidden="true" class="text-fg-dim">›</span>
           </NuxtLink>
+          <button
+            v-if="d.ejectable"
+            class="btn-secondary shrink-0 self-stretch text-sm"
+            :disabled="ejectingId === d.id"
+            :title="`Eject ${d.nickname}`"
+            @click="ejectDevice(d)"
+          >
+            <Spinner v-if="ejectingId === d.id" size="sm" />
+            <span>{{ ejectingId === d.id ? "Ejecting…" : "⏏ Eject" }}</span>
+          </button>
         </li>
         <li v-if="known.length === 0 && !busy" class="card text-center text-fg-dim">
           No devices yet. Plug one in and register it above.
         </li>
       </ul>
+      <p v-if="ejectNote" class="text-xs text-ok">{{ ejectNote }}</p>
     </section>
 
     <!-- Section: virtual mounts (folders treated as fake devices for testing) -->

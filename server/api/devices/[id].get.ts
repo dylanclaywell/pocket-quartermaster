@@ -16,13 +16,23 @@ export default defineEventHandler(async (event) => {
   // Find this device's current mount, if any, by reading markers from each mount.
   const mounts = await listAllMounts(cfg.virtualMounts);
   let currentMountPath: string | undefined;
+  let currentDriveType: string | undefined;
   for (const m of mounts) {
     const marker = await readMarker(m.mountPath);
     if (marker?.id === id) {
       currentMountPath = m.mountPath;
+      currentDriveType = m.driveType;
       break;
     }
   }
+  // Ejectable only for real removable media — never a virtual mount (a folder)
+  // or the host's own fixed disk.
+  const isVirtualMount =
+    currentDriveType === "Virtual" ||
+    (currentMountPath !== undefined &&
+      cfg.virtualMounts.some((v) => v.path === currentMountPath));
+  const ejectable =
+    Boolean(currentMountPath) && !isVirtualMount && currentDriveType !== "Fixed";
 
   // Every profile slot that references this device — drives the "Save slots" section.
   const slots: {
@@ -51,6 +61,7 @@ export default defineEventHandler(async (event) => {
       ...dev,
       mounted: Boolean(currentMountPath),
       currentMountPath,
+      ejectable,
       activityCacheKey: deviceCacheKey(dev.id),
       romsCacheKey: romDeviceCacheKey(dev.id),
     },

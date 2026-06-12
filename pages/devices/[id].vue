@@ -8,6 +8,7 @@ interface DeviceData {
   registeredAt: string;
   mounted: boolean;
   currentMountPath?: string;
+  ejectable?: boolean;
   retroarchActivityDir?: string;
   activityCacheKey: string;
   romsRootRelPath?: string;
@@ -92,6 +93,30 @@ async function renameDevice() {
     await refresh();
   } catch (e) {
     error.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  }
+}
+
+const ejecting = ref(false);
+const ejectNote = ref<string | null>(null);
+
+async function ejectDevice() {
+  if (!device.value?.ejectable) return;
+  if (!confirm(`Eject "${device.value.nickname}"? Make sure no transfer is running.`))
+    return;
+  ejecting.value = true;
+  error.value = null;
+  ejectNote.value = null;
+  try {
+    const res = await $fetch<{ message: string }>(
+      `/api/devices/${id.value}/eject`,
+      { method: "POST" },
+    );
+    ejectNote.value = res.message;
+    await refresh();
+  } catch (e) {
+    error.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    ejecting.value = false;
   }
 }
 
@@ -399,9 +424,19 @@ async function runRomsScan() {
             · now at <span class="font-mono">{{ device.currentMountPath }}</span>
           </span>
         </p>
-        <div class="pt-2">
+        <div class="flex flex-wrap items-center gap-2 pt-2">
           <button class="btn-ghost text-sm" @click="renameDevice">Rename</button>
+          <button
+            v-if="device.ejectable"
+            class="btn-secondary text-sm"
+            :disabled="ejecting"
+            @click="ejectDevice"
+          >
+            <Spinner v-if="ejecting" size="sm" />
+            <span>{{ ejecting ? "Ejecting…" : "⏏ Eject" }}</span>
+          </button>
         </div>
+        <p v-if="ejectNote" class="text-xs text-ok">{{ ejectNote }}</p>
       </header>
 
       <section class="card flex flex-col gap-2">
