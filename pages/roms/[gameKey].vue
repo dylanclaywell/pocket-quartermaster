@@ -40,8 +40,15 @@ interface ComputedGame {
   saveProfileName?: string;
   notes?: string;
   hasThumbnail?: boolean;
+  libretroDbNames?: string[];
   variants: ComputedVariant[];
   destinations: DestinationState[];
+}
+interface ArtSearchResult {
+  filename: string;
+  displayName: string;
+  system: string;
+  downloadUrl: string;
 }
 interface ActivityGame {
   normalizedName: string;
@@ -71,9 +78,101 @@ const savingPrefKey = ref<string | null>(null);
 const fallbackBackground = computed(() =>
   systemFallbackBackground(game.value?.system ?? "unknown"),
 );
+// Cache-busting version bumped after every art download/remove so the <img>
+// refetches.
+const thumbnailVersion = ref(Date.now());
 const thumbnailUrl = computed(() =>
-  game.value ? `/api/thumbnails/${encodeURIComponent(game.value.gameKey)}` : "",
+  game.value
+    ? `/api/thumbnails/${encodeURIComponent(game.value.gameKey)}?v=${thumbnailVersion.value}`
+    : "",
 );
+
+// --- Box-art management (libretro search + URL, shared thumbnail cache) ---
+const searchQuery = ref("");
+const searchResults = ref<ArtSearchResult[]>([]);
+const searchBusy = ref(false);
+const searchError = ref<string | null>(null);
+const searchSystems = ref<{ system: string; ok: boolean; reason?: string }[]>([]);
+const urlInput = ref("");
+const downloadBusy = ref(false);
+const artError = ref<string | null>(null);
+const removeBusy = ref(false);
+
+let searchToken = 0;
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(searchQuery, (q) => {
+  if (searchTimer) clearTimeout(searchTimer);
+  if (!q.trim()) {
+    searchResults.value = [];
+    searchError.value = null;
+    return;
+  }
+  searchTimer = setTimeout(() => runArtSearch(q), 300);
+});
+
+async function runArtSearch(q: string) {
+  const dbNames = game.value?.libretroDbNames ?? [];
+  if (dbNames.length === 0) {
+    searchError.value = "No libretro system mapped for this game.";
+    return;
+  }
+  const token = ++searchToken;
+  searchBusy.value = true;
+  searchError.value = null;
+  try {
+    const res = await $fetch<{
+      results: ArtSearchResult[];
+      systems: { system: string; ok: boolean; reason?: string }[];
+    }>("/api/thumbnails/search", { params: { systems: dbNames.join(","), q } });
+    if (token !== searchToken) return;
+    searchResults.value = res.results;
+    searchSystems.value = res.systems;
+  } catch (e) {
+    if (token !== searchToken) return;
+    searchError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    if (token === searchToken) searchBusy.value = false;
+  }
+}
+
+async function downloadArt(sourceUrl: string) {
+  if (!game.value) return;
+  downloadBusy.value = true;
+  artError.value = null;
+  try {
+    await $fetch("/api/thumbnails/download", {
+      method: "POST",
+      body: { normalizedName: game.value.gameKey, sourceUrl },
+    });
+    thumbnailVersion.value = Date.now();
+    game.value = { ...game.value, hasThumbnail: true };
+    urlInput.value = "";
+    searchResults.value = [];
+    searchQuery.value = "";
+  } catch (e) {
+    artError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    downloadBusy.value = false;
+  }
+}
+
+async function removeArt() {
+  if (!game.value || !confirm("Remove the cached box art for this game?")) return;
+  removeBusy.value = true;
+  artError.value = null;
+  try {
+    await $fetch(`/api/thumbnails/${encodeURIComponent(game.value.gameKey)}`, {
+      method: "DELETE",
+    });
+    thumbnailVersion.value = Date.now();
+    game.value = { ...game.value, hasThumbnail: false };
+  } catch (e) {
+    artError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
+  } finally {
+    removeBusy.value = false;
+  }
+}
 
 function variantLabel(key?: string): string {
   if (!key) return "—";
@@ -251,6 +350,95 @@ function statusPill(status: DestinationState["status"]): { text: string; cls: st
       </header>
 
       <p v-if="actionError" class="text-danger text-sm">{{ actionError }}</p>
+
+      <!-- Box art -->
+      <section class="card flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="font-semibold">Box art</h2>
+          <button
+            v-if="game.hasThumbnail"
+            class="btn-ghost text-xs text-danger"
+            :disabled="removeBusy"
+            @click="removeArt"
+          >
+            <Spinner v-if="removeBusy" size="sm" />
+            <span>{{ removeBusy ? "Removing…" : "Remove" }}</span>
+          </button>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label class="label" for="art-search">Search libretro thumbnails</label>
+          <input
+            id="art-search"
+            v-model="searchQuery"
+            class="input"
+            type="search"
+            placeholder="Start typing the game title…"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            :disabled="(game.libretroDbNames?.length ?? 0) === 0"
+          />
+          <p v-if="(game.libretroDbNames?.length ?? 0) === 0" class="text-warn text-xs">
+            No libretro system mapped for {{ game.system }} — use the URL field below.
+          </p>
+          <p v-if="searchError" class="text-warn text-xs">{{ searchError }}</p>
+
+          <div v-if="searchBusy" class="flex items-center gap-2 py-2 text-xs text-fg-dim">
+            <Spinner size="sm" /> <span>Searching libretro…</span>
+          </div>
+          <ul
+            v-else-if="searchResults.length > 0"
+            class="flex max-h-72 flex-col gap-1 overflow-y-auto rounded border border-border bg-surface-2 p-1"
+          >
+            <li v-for="r in searchResults" :key="`${r.system}/${r.filename}`">
+              <button class="row-button" :disabled="downloadBusy" @click="downloadArt(r.downloadUrl)">
+                <img
+                  :src="r.downloadUrl"
+                  :alt="r.displayName"
+                  class="size-10 shrink-0 rounded object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div class="flex min-w-0 flex-1 flex-col text-left">
+                  <span class="truncate text-sm">{{ r.displayName }}</span>
+                  <span class="truncate text-[10px] text-fg-dim">{{ r.system }}</span>
+                </div>
+              </button>
+            </li>
+          </ul>
+          <p v-else-if="searchQuery.trim()" class="text-xs text-fg-dim">No matches.</p>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label class="label" for="art-url">Or paste an image URL</label>
+          <div class="flex gap-2">
+            <input
+              id="art-url"
+              v-model="urlInput"
+              class="input flex-1"
+              type="url"
+              placeholder="https://…/box-art.png"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+            <button
+              class="btn-secondary text-sm"
+              :disabled="!urlInput.trim() || downloadBusy"
+              @click="downloadArt(urlInput.trim())"
+            >
+              <Spinner v-if="downloadBusy" size="sm" />
+              <span>{{ downloadBusy ? "Downloading…" : "Download" }}</span>
+            </button>
+          </div>
+          <p v-if="artError" class="text-danger text-xs">{{ artError }}</p>
+          <p class="text-[11px] text-fg-dim">
+            PNG, JPG, or WebP, max 5 MB. Cached on the server and shown everywhere this
+            game appears.
+          </p>
+        </div>
+      </section>
 
       <!-- Variants (from master) -->
       <section class="flex flex-col gap-2">

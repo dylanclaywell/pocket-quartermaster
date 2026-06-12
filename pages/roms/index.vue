@@ -20,7 +20,6 @@ interface LibrarySummary {
   cacheKey: string;
   sourceKind: "device" | "virtualMount";
   sourceLabel: string;
-  role: "library" | "destination";
   configured: boolean;
   cacheExists: boolean;
   lastScannedAt?: string;

@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import type { ConfigFile, RomLibraryRole } from "./types";
+import type { ConfigFile } from "./types";
 import type { RomFileRecord } from "./romScan";
 import {
   listAllRomCaches,
@@ -15,7 +15,6 @@ interface SourceMeta {
   cacheKey: string;
   sourceKind: SourceKind;
   sourceLabel: string;
-  role: RomLibraryRole;
   configured: boolean;
   romsRootRelPath?: string;
 }
@@ -88,43 +87,17 @@ function variantKey(rec: RomFileRecord): string {
   return `${rec.systemKey}/${rec.filename}`;
 }
 
-/** Rom cache keys of every ROM-configured source, in config order. */
-function romConfiguredCacheKeys(cfg: ConfigFile): string[] {
-  const keys: string[] = [];
-  for (const dev of cfg.devices) {
-    if (dev.romsRootRelPath) keys.push(romDeviceCacheKey(dev.id));
-  }
-  for (const vm of cfg.virtualMounts) {
-    if (vm.romsRootRelPath) keys.push(romVirtualMountCacheKey(resolve(vm.path)));
-  }
-  return keys;
-}
-
-/** The cache key of the active library source: the configured pointer when it
- *  still names a ROM-configured source, otherwise the sole configured source
- *  (so single-library setups need no explicit pick), otherwise none. */
-export function effectiveLibraryKey(cfg: ConfigFile): string | undefined {
-  const keys = romConfiguredCacheKeys(cfg);
-  if (cfg.romLibrarySourceKey && keys.includes(cfg.romLibrarySourceKey)) {
-    return cfg.romLibrarySourceKey;
-  }
-  return keys.length === 1 ? keys[0] : undefined;
-}
-
 /** Resolve every rom cache key the config knows about to its label, kind, and
- *  role. The source matching `libraryKey` is the library; all others are
- *  destinations. */
-function buildSourceMeta(cfg: ConfigFile, libraryKey?: string): Map<string, SourceMeta> {
+ *  whether it's configured as a ROM source. There is no master library — every
+ *  configured source contributes to the catalog. */
+function buildSourceMeta(cfg: ConfigFile): Map<string, SourceMeta> {
   const map = new Map<string, SourceMeta>();
-  const role = (cacheKey: string): RomLibraryRole =>
-    cacheKey === libraryKey ? "library" : "destination";
   for (const dev of cfg.devices) {
     const key = romDeviceCacheKey(dev.id);
     map.set(key, {
       cacheKey: key,
       sourceKind: "device",
       sourceLabel: dev.nickname,
-      role: role(key),
       configured: Boolean(dev.romsRootRelPath),
       romsRootRelPath: dev.romsRootRelPath,
     });
@@ -135,7 +108,6 @@ function buildSourceMeta(cfg: ConfigFile, libraryKey?: string): Map<string, Sour
       cacheKey: key,
       sourceKind: "virtualMount",
       sourceLabel: vm.label || vm.path,
-      role: role(key),
       configured: Boolean(vm.romsRootRelPath),
       romsRootRelPath: vm.romsRootRelPath,
     });
@@ -152,8 +124,7 @@ export async function computeLibrary(
 ): Promise<ComputedLibrary> {
   const caches = injectedCaches ?? (await listAllRomCaches());
   const cacheByKey = new Map(caches.map((c) => [c.cacheKey, c]));
-  const libraryKey = effectiveLibraryKey(cfg);
-  const sourceMeta = buildSourceMeta(cfg, libraryKey);
+  const sourceMeta = buildSourceMeta(cfg);
 
   // A cache whose source was removed from config is no longer a real source.
   function metaFor(cacheKey: string): SourceMeta {
@@ -162,7 +133,6 @@ export async function computeLibrary(
         cacheKey,
         sourceKind: "device",
         sourceLabel: "(removed source)",
-        role: "destination",
         configured: false,
       }
     );

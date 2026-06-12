@@ -57,11 +57,6 @@ export interface DeviceIdentity {
     no metadata is written for that destination. */
 export type LauncherKind = "es-de" | "muos";
 
-/** A ROM source's role, derived from `ConfigFile.romLibrarySourceKey`: the one
-    source matching that key is the `library`; every other ROM-configured source
-    is a `destination`. Never stored per-source. */
-export type RomLibraryRole = "library" | "destination";
-
 /** A single device slot inside a profile. A profile holds N of these and the
     user picks source + destination explicitly at transfer time. */
 export interface ProfileSlot {
@@ -171,10 +166,6 @@ export interface ConfigFile {
   gameMeta: GameMeta[];
   /** Per-(game, destination) preferred-variant rows. */
   deviceGamePreferences: DeviceGamePreference[];
-  /** ROM cache key (`romdev-…` / `romvm-…`) of the source designated as the
-      canonical library. Every other ROM-configured source is a destination.
-      Unset means no library chosen yet (the ROMs page prompts for one). */
-  romLibrarySourceKey?: string;
 }
 
 export const MARKER_FILENAME = ".pqm-device-id.json";

@@ -32,7 +32,9 @@ const ATARI_2600 = "Atari - 2600";
 const ATARI_7800 = "Atari - 7800";
 const ATARI_LYNX = "Atari - Lynx";
 const WSWAN = "Bandai - WonderSwan";
+const WSWAN_COLOR = "Bandai - WonderSwan Color";
 const NEOGEO_POCKET = "SNK - Neo Geo Pocket Color";
+const NEOGEO_POCKET_BASE = "SNK - Neo Geo Pocket";
 const ARCADE = "MAME";
 const COLECO = "Coleco - ColecoVision";
 
@@ -114,4 +116,33 @@ export const CORES: Record<string, CoreInfo> = {
   "MAME 2010": { displaySystem: "Arcade", libretroDbNames: [ARCADE] },
   // Colecovision
   "blueMSX": { displaySystem: "ColecoVision", libretroDbNames: [COLECO] },
+};
+
+/** Maps a ROM-scan systemKey (see romScan SYSTEMS) to the libretro-thumbnails
+ *  repo name(s) to search for box art. Lets the ROM library reuse the same
+ *  thumbnail search the activity feature drives off cores. */
+export const SYSTEM_LIBRETRO_DB_NAMES: Record<string, string[]> = {
+  gb: [GB],
+  gbc: [GBC],
+  gba: [GBA],
+  nes: [NES],
+  snes: [SNES],
+  n64: [N64],
+  nds: [DS],
+  "3ds": [N3DS],
+  genesis: [GENESIS],
+  sms: [SMS],
+  gg: [GG],
+  saturn: [SATURN],
+  dreamcast: [DREAMCAST],
+  psx: [PSX],
+  psp: [PSP],
+  pce: [PCE, PCE_SUPER],
+  wonderswan: [WSWAN, WSWAN_COLOR],
+  ngp: [NEOGEO_POCKET, NEOGEO_POCKET_BASE],
+  atari2600: [ATARI_2600],
+  atari7800: [ATARI_7800],
+  lynx: [ATARI_LYNX],
+  colecovision: [COLECO],
+  arcade: [ARCADE],
 };

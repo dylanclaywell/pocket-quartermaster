@@ -1,6 +1,7 @@
 import { loadConfig } from "../../../utils/storage";
 import { computeLibrary } from "../../../utils/romLibrary";
 import { hasThumbnail } from "../../../utils/thumbnails";
+import { SYSTEM_LIBRETRO_DB_NAMES } from "../../../utils/cores";
 
 export default defineEventHandler(async (event) => {
   const gameKey = getRouterParam(event, "gameKey");
@@ -12,5 +13,11 @@ export default defineEventHandler(async (event) => {
   const game = games.find((g) => g.gameKey === decoded);
   if (!game) throw createError({ statusCode: 404, statusMessage: "game not found" });
 
-  return { game: { ...game, hasThumbnail: await hasThumbnail(decoded) } };
+  return {
+    game: {
+      ...game,
+      hasThumbnail: await hasThumbnail(decoded),
+      libretroDbNames: SYSTEM_LIBRETRO_DB_NAMES[game.systemKey] ?? [],
+    },
+  };
 });
