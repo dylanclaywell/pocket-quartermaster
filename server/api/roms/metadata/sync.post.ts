@@ -12,9 +12,11 @@ import {
  *  game already installed on it — no file copying. Used to push name edits to a
  *  device without re-transferring multi-GB ROMs. */
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ destCacheKey?: string }>(event);
+  const body = await readBody<{ destCacheKey?: string; gameKeys?: string[] }>(event);
   const destCacheKey = body?.destCacheKey?.trim();
   if (!destCacheKey) throw createError({ statusCode: 400, statusMessage: "destCacheKey required" });
+  // Optional subset — when omitted, every installed game is (re)named.
+  const wanted = Array.isArray(body?.gameKeys) ? new Set(body.gameKeys) : null;
 
   const cfg = await loadConfig();
   const kind = launcherKindForCacheKey(cfg, destCacheKey);
@@ -43,6 +45,7 @@ export default defineEventHandler(async (event) => {
   const { games } = await computeLibrary(cfg);
   const entries: MetadataEntry[] = [];
   for (const g of games) {
+    if (wanted && !wanted.has(g.gameKey)) continue;
     const d = g.destinations.find((x) => x.cacheKey === destCacheKey);
     if (!d || d.installedFilenames.length === 0) continue;
     for (const filename of d.installedFilenames) {

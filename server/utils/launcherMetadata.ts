@@ -69,6 +69,89 @@ export function launcherKindForCacheKey(
   return undefined;
 }
 
+/** One game file to look up a current launcher name for. */
+export interface NameLookup {
+  systemKey: string;
+  filename: string;
+}
+
+/** Read the launcher's current display names for the given files, keyed by
+ *  `${systemKey}/${filename}`. Files with no name set are absent from the map.
+ *  Used to reconcile what a name push would change before writing. */
+export async function readLauncherNames(
+  kind: LauncherKind,
+  destRoot: string,
+  lookups: NameLookup[],
+): Promise<Map<string, string>> {
+  if (kind === "es-de") return readEsDeNames(destRoot, lookups);
+  return readMuosNames(destRoot, lookups);
+}
+
+function lookupKey(systemKey: string, filename: string): string {
+  return `${systemKey}/${filename}`;
+}
+
+/** Group lookups by system, reading each gamelist.xml once. */
+async function readEsDeNames(
+  destRoot: string,
+  lookups: NameLookup[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const bySys = new Map<string, NameLookup[]>();
+  for (const l of lookups) {
+    const arr = bySys.get(l.systemKey) ?? [];
+    arr.push(l);
+    bySys.set(l.systemKey, arr);
+  }
+  for (const [systemKey, list] of bySys) {
+    const file = join(destRoot, systemKey.split("/").join(sep), "gamelist.xml");
+    if (!existsSync(file)) continue;
+    let games: EsDeGame[] = [];
+    try {
+      const doc = parser.parse(await readFile(file, "utf8")) as {
+        gameList?: { game?: EsDeGame[] };
+      };
+      if (doc.gameList?.game) games = doc.gameList.game;
+    } catch {
+      continue; // malformed gamelist — treat as no names
+    }
+    for (const l of list) {
+      const g = games.find((x) => pathMatches(x.path, l.filename));
+      if (g && typeof g.name === "string" && g.name.length > 0) {
+        out.set(lookupKey(l.systemKey, l.filename), g.name);
+      }
+    }
+  }
+  return out;
+}
+
+/** muOS keeps all names in one flat global.json keyed by lowercased stem. */
+async function readMuosNames(
+  infoRoot: string,
+  lookups: NameLookup[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const file = join(infoRoot, "name", "global.json");
+  if (!existsSync(file)) return out;
+  let names: Record<string, string> = {};
+  try {
+    const parsed = JSON.parse(await readFile(file, "utf8"));
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      names = parsed as Record<string, string>;
+    }
+  } catch {
+    return out;
+  }
+  for (const l of lookups) {
+    const key = basename(l.filename, extname(l.filename)).toLowerCase();
+    const name = key ? names[key] : undefined;
+    if (typeof name === "string" && name.length > 0) {
+      out.set(lookupKey(l.systemKey, l.filename), name);
+    }
+  }
+  return out;
+}
+
 /** Write clean display names into a destination's launcher metadata, grouped by
  *  system. Merges into existing files — only the games in `entries` are touched;
  *  everything else (other games, scraped fields) is preserved. */

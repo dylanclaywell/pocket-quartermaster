@@ -13,7 +13,7 @@ const sources = ref<LibrarySummary[]>([]);
 const allGameKeys = ref<string[]>([]);
 const sourceCacheKey = ref<string>("");
 const destCacheKey = ref<string>("");
-const tab = ref<"roms" | "art">("roms");
+const tab = ref<"roms" | "art" | "names">("roms");
 
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -117,7 +117,8 @@ onMounted(loadInitial);
           </div>
         </div>
 
-        <!-- ROMs / Art tabs share the source + destination chosen above. -->
+        <!-- ROMs / Art / Names tabs share the source + destination above.
+             Art and Names are destination-only (source is irrelevant). -->
         <div class="flex gap-1 border-b border-border">
           <button
             class="-mb-px border-b-2 px-3 py-2 text-sm font-medium"
@@ -141,6 +142,17 @@ onMounted(loadInitial);
           >
             Art
           </button>
+          <button
+            class="-mb-px border-b-2 px-3 py-2 text-sm font-medium"
+            :class="
+              tab === 'names'
+                ? 'border-accent text-fg'
+                : 'border-transparent text-fg-dim hover:text-fg'
+            "
+            @click="tab = 'names'"
+          >
+            Names
+          </button>
         </div>
 
         <TransferRomsTab
@@ -151,6 +163,11 @@ onMounted(loadInitial);
           :all-game-keys="allGameKeys"
         />
         <TransferArtTab
+          v-else-if="tab === 'art'"
+          :dest-cache-key="destCacheKey"
+          :dest-label="selectedDestLabel"
+        />
+        <TransferNamesTab
           v-else
           :dest-cache-key="destCacheKey"
           :dest-label="selectedDestLabel"
