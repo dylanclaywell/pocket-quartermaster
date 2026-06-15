@@ -8,6 +8,7 @@ import {
   parseLrtl,
   type ActivityEntry,
 } from "./retroarchActivity";
+import { appendSnapshot } from "./activityHistory";
 
 const paths = envPaths("pocket-quartermaster", { suffix: "" });
 export const ACTIVITY_CACHE_DIR = join(paths.config, "activity-cache");
@@ -114,6 +115,21 @@ export async function refreshCache(
   const entries = [...reused, ...parsedEntries];
   const scannedAt = new Date().toISOString();
   await persistCache({ cacheKey, scannedAt, logsDir, entries });
+
+  // Append a runtime snapshot for trend derivation. A name can span cores/files
+  // on one source, so fold cumulative seconds per normalizedName. This must never
+  // break a scan — history is auxiliary.
+  try {
+    const games: Record<string, number> = {};
+    let totalSeconds = 0;
+    for (const e of entries) {
+      games[e.normalizedName] = (games[e.normalizedName] ?? 0) + e.runtimeSeconds;
+      totalSeconds += e.runtimeSeconds;
+    }
+    await appendSnapshot(cacheKey, { at: scannedAt, totalSeconds, games });
+  } catch {
+    // history append is best-effort; ignore failures
+  }
 
   return {
     cacheKey,

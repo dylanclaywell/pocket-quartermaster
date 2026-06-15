@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { formatRelativeIso } from "~/composables/useFormat";
+import { formatDuration, formatRelativeIso } from "~/composables/useFormat";
 
 interface ProfileSlot {
   id: string;
@@ -25,6 +25,11 @@ interface KnownDevice extends KnownDeviceLite {
   retroarchActivityDir?: string;
   activityCacheKey: string;
 }
+interface PerDevice {
+  cacheKey: string;
+  sourceLabel: string;
+  runtimeSeconds: number;
+}
 interface AggregatedGame {
   normalizedName: string;
   displayName: string;
@@ -34,6 +39,13 @@ interface AggregatedGame {
   totalPlayCount: number;
   lastPlayedAt?: string;
   hasThumbnail: boolean;
+  perDevice: PerDevice[];
+}
+interface TrendsData {
+  days: { date: string; seconds: number }[];
+  weekSeconds: number;
+  streakDays: number;
+  haveHistory: boolean;
 }
 
 const { data: profileData, refresh: refreshProfiles, pending: profilesPending } = await useFetch<{
@@ -49,6 +61,11 @@ const { data: activityData, refresh: refreshActivity, pending: activityPending }
   games: AggregatedGame[];
 }>("/api/activity");
 
+const { data: trendsData, refresh: refreshTrends } = await useFetch<TrendsData>(
+  "/api/activity/trends",
+  { query: { days: 14 } },
+);
+
 const profiles = computed(() => profileData.value?.profiles ?? []);
 const profileDevices = computed(() => profileData.value?.devices ?? []);
 const knownDevices = computed(() => deviceData.value?.devices ?? []);
@@ -56,6 +73,38 @@ const games = computed(() => activityData.value?.games ?? []);
 
 const recentGames = computed(() => games.value.slice(0, 5));
 const attentionProfiles = computed(() => profiles.value.filter((p) => !p.ready));
+
+// Headline totals — folded client-side from the activity list.
+const totalSeconds = computed(() =>
+  games.value.reduce((s, g) => s + g.totalSeconds, 0),
+);
+const totalSessions = computed(() =>
+  games.value.reduce((s, g) => s + g.totalPlayCount, 0),
+);
+const hasActivity = computed(() => games.value.length > 0);
+
+// Top 5 by total playtime (distinct from Recently-played, which is by last-played).
+const topPlayed = computed(() =>
+  [...games.value].sort((a, b) => b.totalSeconds - a.totalSeconds).slice(0, 5),
+);
+
+// Hours per source, folding each game's per-device breakdown.
+const byDevice = computed(() => {
+  const acc = new Map<string, { label: string; seconds: number }>();
+  for (const g of games.value) {
+    for (const pd of g.perDevice ?? []) {
+      const cur = acc.get(pd.cacheKey) ?? { label: pd.sourceLabel, seconds: 0 };
+      cur.seconds += pd.runtimeSeconds;
+      acc.set(pd.cacheKey, cur);
+    }
+  }
+  return [...acc.values()].sort((a, b) => b.seconds - a.seconds);
+});
+
+const trends = computed(() => trendsData.value);
+const weekSparkValues = computed(
+  () => trends.value?.days.slice(-7).map((d) => d.seconds) ?? [],
+);
 
 function deviceName(id: string): string {
   return profileDevices.value.find((d) => d.id === id)?.nickname ?? "(unknown)";
@@ -72,7 +121,7 @@ async function scanActivity() {
   scanError.value = null;
   try {
     await $fetch("/api/activity/scan", { method: "POST", body: {} });
-    await refreshActivity();
+    await Promise.all([refreshActivity(), refreshTrends()]);
   } catch (e) {
     scanError.value = (e as { statusMessage?: string }).statusMessage ?? (e as Error).message;
   } finally {
@@ -81,7 +130,12 @@ async function scanActivity() {
 }
 
 async function refreshAll() {
-  await Promise.all([refreshProfiles(), refreshDevices(), refreshActivity()]);
+  await Promise.all([
+    refreshProfiles(),
+    refreshDevices(),
+    refreshActivity(),
+    refreshTrends(),
+  ]);
 }
 const anyPending = computed(
   () => profilesPending.value || devicesPending.value || activityPending.value,
@@ -90,6 +144,69 @@ const anyPending = computed(
 
 <template>
   <div class="flex flex-col gap-5">
+    <!-- Dashboard summary -->
+    <section v-if="hasActivity" class="flex flex-col gap-3">
+      <!-- Headline tiles -->
+      <div class="grid grid-cols-3 gap-2">
+        <div class="card flex flex-col items-center gap-0.5 py-3 text-center">
+          <span class="text-lg font-semibold">{{ formatDuration(totalSeconds) }}</span>
+          <span class="text-[11px] uppercase tracking-wide text-fg-dim">Total played</span>
+        </div>
+        <div class="card flex flex-col items-center gap-0.5 py-3 text-center">
+          <span class="text-lg font-semibold">{{ games.length }}</span>
+          <span class="text-[11px] uppercase tracking-wide text-fg-dim">Games</span>
+        </div>
+        <div class="card flex flex-col items-center gap-0.5 py-3 text-center">
+          <span class="text-lg font-semibold">{{ totalSessions }}</span>
+          <span class="text-[11px] uppercase tracking-wide text-fg-dim">Sessions</span>
+        </div>
+      </div>
+
+      <!-- This week -->
+      <div class="card flex flex-col gap-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-semibold uppercase tracking-wide text-fg-dim">
+            This week
+          </span>
+          <span v-if="trends?.haveHistory" class="text-xs text-fg-dim">
+            {{ formatDuration(trends.weekSeconds) }}
+            <template v-if="trends.streakDays > 0">
+              · {{ trends.streakDays }}-day streak
+            </template>
+          </span>
+        </div>
+        <Sparkline v-if="trends?.haveHistory" :values="weekSparkValues" />
+        <p v-else class="text-xs text-fg-dim">
+          Building history — daily trends appear after a couple of scans.
+        </p>
+      </div>
+
+      <!-- Hours by device -->
+      <div v-if="byDevice.length > 1" class="card flex flex-col gap-1.5">
+        <span class="text-xs font-semibold uppercase tracking-wide text-fg-dim">
+          By device
+        </span>
+        <div
+          v-for="d in byDevice"
+          :key="d.label"
+          class="flex items-center justify-between gap-2 text-sm"
+        >
+          <span class="truncate">{{ d.label }}</span>
+          <span class="font-mono text-fg-dim">{{ formatDuration(d.seconds) }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Top played -->
+    <section v-if="topPlayed.length > 0" class="flex flex-col gap-3">
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">
+        Most played
+      </h2>
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+        <GameCard v-for="g in topPlayed" :key="g.normalizedName" :game="g" />
+      </div>
+    </section>
+
     <!-- Recently played -->
     <section class="flex flex-col gap-3">
       <div class="flex items-center justify-between gap-2">
