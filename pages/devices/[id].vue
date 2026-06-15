@@ -215,7 +215,7 @@ async function applyRomsDir(value: string | null) {
 const launcherOptions = [
   { value: "", label: "None (don't write names)" },
   { value: "es-de", label: "ES-DE (gamelist.xml)" },
-  { value: "muos", label: "muOS (names coming soon)" },
+  { value: "muos", label: "muOS (info/name)" },
 ];
 const launcherBusy = ref(false);
 

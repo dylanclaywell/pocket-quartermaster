@@ -1,9 +1,9 @@
 ---
 id: activity-visual-rework-per-game-thumbnails
 title: Activity visual rework + per-game thumbnails
-status: active
+status: completed
 created: 2026-06-09T15:46:23.401Z
-updated: 2026-06-09T15:46:23.401Z
+updated: 2026-06-15T00:00:00.000Z
 tags:
   - feature
   - activity
