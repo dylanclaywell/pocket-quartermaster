@@ -17,6 +17,7 @@ const EMPTY_CONFIG: ConfigFile = {
   virtualMounts: [],
   gameMeta: [],
   deviceGamePreferences: [],
+  reclaimExcludedSources: [],
 };
 
 export async function loadConfig(): Promise<ConfigFile> {
@@ -44,6 +45,10 @@ export async function loadConfig(): Promise<ConfigFile> {
   }
   if (!Array.isArray(parsed.deviceGamePreferences)) {
     parsed.deviceGamePreferences = [];
+    migrated = true;
+  }
+  if (!Array.isArray(parsed.reclaimExcludedSources)) {
+    parsed.reclaimExcludedSources = [];
     migrated = true;
   }
   if (parsed.version !== 3) {

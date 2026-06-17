@@ -50,6 +50,13 @@ const showBack = computed(() => route.path !== "/");
         Transfer
       </NuxtLink>
       <NuxtLink
+        to="/storage"
+        class="btn-ghost px-2 py-2 text-sm font-medium"
+        aria-label="Storage"
+      >
+        Storage
+      </NuxtLink>
+      <NuxtLink
         to="/devices"
         class="btn-ghost px-2 py-2 text-sm font-medium"
         aria-label="Devices"

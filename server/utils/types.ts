@@ -166,6 +166,13 @@ export interface ConfigFile {
   gameMeta: GameMeta[];
   /** Per-(game, destination) preferred-variant rows. */
   deviceGamePreferences: DeviceGamePreference[];
+  /** ROM cache keys (`romdev-…` / `romvm-…`) the user has excluded from the
+      storage page's reclaim-space suggestions. An excluded source still counts
+      as a backup location for other sources' games (so `backedUpElsewhere`
+      stays accurate) and still shows its space budget — it just never produces
+      prune candidates of its own. Use case: a full game-library HDD you never
+      want to clear from but want to know is backing things up. */
+  reclaimExcludedSources: string[];
 }
 
 export const MARKER_FILENAME = ".pqm-device-id.json";
