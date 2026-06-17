@@ -188,7 +188,7 @@ async function removeThumbnail() {
 
     <template v-else-if="game">
       <header class="flex flex-col gap-1">
-        <p class="text-xs uppercase tracking-wide text-fg-dim">
+        <p class="eyebrow">
           {{ game.system ?? game.cores.join(", ") }}
         </p>
         <h1 class="text-xl font-bold leading-tight">{{ game.displayName }}</h1>
@@ -202,7 +202,7 @@ async function removeThumbnail() {
       </header>
 
       <section class="card flex flex-col gap-3">
-        <h2 class="font-semibold">Box art</h2>
+        <h2 class="eyebrow">Box art</h2>
 
         <div class="flex items-start gap-3">
           <div
@@ -351,7 +351,7 @@ async function removeThumbnail() {
       </section>
 
       <section class="flex flex-col gap-2">
-        <h2 class="font-semibold">Where this game was played</h2>
+        <h2 class="eyebrow">Where this game was played</h2>
         <ul class="flex flex-col gap-1.5">
           <li
             v-for="(pd, idx) in game.perDevice"

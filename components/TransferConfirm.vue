@@ -44,13 +44,13 @@ const willCreate = computed(
       <h2 class="mb-2 text-lg font-bold">Confirm transfer</h2>
       <div class="mb-4 flex flex-col gap-2 text-sm">
         <div>
-          <p class="text-xs uppercase tracking-wide text-fg-dim">Source</p>
+          <p class="eyebrow">Source</p>
           <p class="break-all">
             {{ source.deviceNickname }}:/{{ source.fileRelPath }}
           </p>
         </div>
         <div>
-          <p class="text-xs uppercase tracking-wide text-fg-dim">Destination</p>
+          <p class="eyebrow">Destination</p>
           <p class="break-all">
             {{ destination.deviceNickname }}:/{{ destinationFinalPath }}
           </p>

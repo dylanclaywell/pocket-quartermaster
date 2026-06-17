@@ -1,6 +1,11 @@
 <script setup lang="ts">
 const route = useRoute();
 const showBack = computed(() => route.path !== "/");
+
+// Apply the chosen theme to <html> on both server and client so the first
+// paint already carries the right data-theme (no flash-of-default-theme).
+const { theme } = useTheme();
+useHead({ htmlAttrs: { "data-theme": theme } });
 </script>
 
 <template>
@@ -18,7 +23,14 @@ const showBack = computed(() => route.path !== "/");
         <span aria-hidden="true" class="text-xl leading-none">‹</span>
         <span class="sr-only">Back</span>
       </button>
-      <NuxtLink to="/" class="flex-1 text-lg font-bold tracking-tight">
+      <NuxtLink
+        to="/"
+        class="flex flex-1 items-center gap-2 font-mono text-base font-bold tracking-tight"
+      >
+        <span
+          aria-hidden="true"
+          class="size-2 rounded-full bg-accent shadow-[0_0_8px_var(--color-accent)]"
+        />
         Pocket Quartermaster
       </NuxtLink>
       <NuxtLink

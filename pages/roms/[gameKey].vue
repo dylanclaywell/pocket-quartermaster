@@ -316,7 +316,7 @@ function statusPill(status: DestinationState["status"]): { text: string; cls: st
           </span>
         </div>
         <div class="flex min-w-0 flex-1 flex-col gap-1">
-          <p class="text-xs uppercase tracking-wide text-fg-dim">{{ game.system }}</p>
+          <p class="eyebrow">{{ game.system }}</p>
           <div v-if="!editingName" class="flex items-center gap-2">
             <h1 class="text-xl font-bold leading-tight">{{ game.displayName }}</h1>
             <button class="btn-secondary shrink-0 text-sm" @click="startEditName">Edit</button>
@@ -354,7 +354,7 @@ function statusPill(status: DestinationState["status"]): { text: string; cls: st
       <!-- Box art -->
       <section class="card flex flex-col gap-3">
         <div class="flex items-center justify-between gap-2">
-          <h2 class="font-semibold">Box art</h2>
+          <h2 class="eyebrow">Box art</h2>
           <button
             v-if="game.hasThumbnail"
             class="btn-ghost text-xs text-danger"
@@ -442,14 +442,14 @@ function statusPill(status: DestinationState["status"]): { text: string; cls: st
 
       <!-- Variants (from master) -->
       <section class="flex flex-col gap-2">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">Variants</h2>
+        <h2 class="eyebrow">Variants</h2>
         <ul class="flex flex-col gap-2">
           <li v-for="v in game.variants" :key="v.key" class="card flex flex-col gap-1">
             <div class="flex items-start justify-between gap-2">
               <span class="break-all font-mono text-sm">{{ v.filename }}</span>
               <span
                 v-if="v.isDefault"
-                class="pill shrink-0 bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok"
+                class="status is-on shrink-0"
                 >default</span
               >
               <button
@@ -478,7 +478,7 @@ function statusPill(status: DestinationState["status"]): { text: string; cls: st
 
       <!-- On your devices -->
       <section class="flex flex-col gap-2">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">On your devices</h2>
+        <h2 class="eyebrow">On your devices</h2>
         <p v-if="game.destinations.length === 0" class="card text-center text-sm text-fg-dim">
           No destination devices configured. Mark a device or virtual mount as a
           <span class="font-semibold text-fg">destination</span> on the Devices page.
@@ -516,7 +516,7 @@ function statusPill(status: DestinationState["status"]): { text: string; cls: st
 
       <!-- Links & notes -->
       <section class="card flex flex-col gap-3">
-        <h2 class="font-semibold">Links &amp; notes</h2>
+        <h2 class="eyebrow">Links &amp; notes</h2>
         <div class="flex flex-col gap-1">
           <span class="label">Save profile</span>
           <AppSelect

@@ -1,17 +1,166 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: oklch(0.18 0.02 250);
-  --color-surface: oklch(0.23 0.02 250);
-  --color-surface-2: oklch(0.28 0.02 250);
-  --color-border: oklch(0.36 0.02 250);
-  --color-fg: oklch(0.96 0.01 250);
-  --color-fg-dim: oklch(0.7 0.02 250);
-  --color-accent: oklch(0.72 0.18 195);
-  --color-accent-strong: oklch(0.82 0.18 195);
-  --color-warn: oklch(0.8 0.18 70);
-  --color-danger: oklch(0.7 0.2 25);
-  --color-ok: oklch(0.78 0.18 145);
+  /* ── Default theme: LCD (handheld) ──────────────────────────────────
+     These @theme tokens are Tailwind's source of truth and seed :root.
+     Each named theme below (html[data-theme="…"]) overrides the same
+     custom properties, and every utility (bg-surface, text-accent, …)
+     follows automatically because it compiles to var(--color-…). */
+
+  /* Handheld shell — warm, faintly green-tinted charcoal (hue ~130),
+     deliberately off the default slate-blue (hue 250). */
+  --color-bg: oklch(0.17 0.012 130);
+  --color-surface: oklch(0.22 0.014 130);
+  --color-surface-2: oklch(0.27 0.016 130);
+  --color-border: oklch(0.34 0.018 130);
+  --color-fg: oklch(0.94 0.014 120);
+  --color-fg-dim: oklch(0.68 0.02 130);
+  /* Accent = DMG phosphor green (the real Game Boy LCD olive-green,
+     ~#9bbc0f), not acid-green-on-black. */
+  --color-accent: oklch(0.82 0.15 128);
+  --color-accent-strong: oklch(0.89 0.16 128);
+  --color-warn: oklch(0.82 0.16 75);
+  --color-danger: oklch(0.65 0.19 28);
+  --color-ok: oklch(0.82 0.15 128);
+  /* Text that sits on top of an accent fill (primary buttons). */
+  --color-on-accent: oklch(0.18 0.02 130);
+
+  --font-mono:
+    "Space Mono", ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  --font-body:
+    "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ── Signature treatment, driven by variables ─────────────────────────
+   The dashboard readout panel (.lcd) and status glow read entirely from
+   these props, so a theme restyles the signature by swapping values —
+   no per-theme selector rewrites. Defaults = the LCD phosphor screen. */
+:root {
+  --readout-bg: radial-gradient(
+    120% 140% at 50% 0%,
+    oklch(0.26 0.05 130) 0%,
+    oklch(0.2 0.04 130) 55%,
+    oklch(0.16 0.03 130) 100%
+  );
+  --readout-border: 1px solid
+    color-mix(in oklab, var(--color-accent) 22%, var(--color-border));
+  --readout-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--color-accent) 18%, transparent),
+    inset 0 0 36px color-mix(in oklab, black 55%, transparent),
+    0 1px 0 color-mix(in oklab, black 40%, transparent);
+  --readout-grid: repeating-linear-gradient(
+    0deg,
+    color-mix(in oklab, var(--color-accent) 7%, transparent) 0px,
+    color-mix(in oklab, var(--color-accent) 7%, transparent) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  --readout-grid-opacity: 0.5;
+  --readout-fg: var(--color-accent-strong);
+  --readout-glow: 0 0 10px
+    color-mix(in oklab, var(--color-accent) 60%, transparent);
+  --status-glow: 0 0 8px color-mix(in oklab, var(--color-ok) 55%, transparent);
+}
+
+/* ── Theme: Cartridge / depot ─────────────────────────────────────────
+   Warm equipment palette — charcoal, signal-amber, field-olive. The
+   readout becomes an embossed label, not a glowing screen. */
+html[data-theme="cartridge"] {
+  --color-bg: oklch(0.18 0.015 60);
+  --color-surface: oklch(0.23 0.02 60);
+  --color-surface-2: oklch(0.28 0.025 60);
+  --color-border: oklch(0.37 0.03 60);
+  --color-fg: oklch(0.95 0.015 80);
+  --color-fg-dim: oklch(0.7 0.025 70);
+  --color-accent: oklch(0.78 0.16 65);
+  --color-accent-strong: oklch(0.85 0.17 65);
+  --color-warn: oklch(0.82 0.16 95);
+  --color-danger: oklch(0.6 0.2 28);
+  --color-ok: oklch(0.72 0.13 130);
+  --color-on-accent: oklch(0.2 0.03 60);
+
+  --readout-bg: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--color-surface-2) 92%, white 8%),
+    var(--color-surface)
+  );
+  --readout-border: 1px solid var(--color-border);
+  --readout-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 12%, transparent),
+    0 1px 2px color-mix(in oklab, black 35%, transparent);
+  --readout-grid: none;
+  --readout-grid-opacity: 0;
+  --readout-fg: var(--color-accent-strong);
+  --readout-glow: none;
+  --status-glow: none;
+}
+
+/* ── Theme: Phosphor terminal ─────────────────────────────────────────
+   Amber-on-black CRT. All-mono, dense scanlines, strong glow. */
+html[data-theme="phosphor"] {
+  --color-bg: oklch(0.14 0.01 70);
+  --color-surface: oklch(0.18 0.015 70);
+  --color-surface-2: oklch(0.22 0.02 70);
+  --color-border: oklch(0.3 0.03 70);
+  --color-fg: oklch(0.88 0.1 75);
+  --color-fg-dim: oklch(0.62 0.08 75);
+  --color-accent: oklch(0.8 0.16 70);
+  --color-accent-strong: oklch(0.88 0.17 75);
+  --color-warn: oklch(0.85 0.15 95);
+  --color-danger: oklch(0.65 0.2 28);
+  --color-ok: oklch(0.8 0.16 70);
+  --color-on-accent: oklch(0.14 0.01 70);
+  --font-body: var(--font-mono);
+
+  --readout-bg: radial-gradient(
+    120% 140% at 50% 0%,
+    oklch(0.2 0.03 70) 0%,
+    oklch(0.13 0.02 70) 100%
+  );
+  --readout-border: 1px solid
+    color-mix(in oklab, var(--color-accent) 30%, var(--color-border));
+  --readout-shadow:
+    inset 0 0 40px color-mix(in oklab, black 60%, transparent),
+    inset 0 0 8px color-mix(in oklab, var(--color-accent) 25%, transparent);
+  --readout-grid: repeating-linear-gradient(
+    0deg,
+    color-mix(in oklab, var(--color-accent) 12%, transparent) 0px,
+    color-mix(in oklab, var(--color-accent) 12%, transparent) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  --readout-grid-opacity: 0.7;
+  --readout-fg: var(--color-accent-strong);
+  --readout-glow: 0 0 12px color-mix(in oklab, var(--color-accent) 75%, transparent);
+  --status-glow: 0 0 10px color-mix(in oklab, var(--color-ok) 65%, transparent);
+}
+
+/* ── Theme: Paper manual (light) ──────────────────────────────────────
+   Cream stock, ink text, one spot color. The readout becomes a printed
+   diagram box with an offset block shadow — instruction-booklet feel. */
+html[data-theme="paper"] {
+  --color-bg: oklch(0.95 0.015 85);
+  --color-surface: oklch(0.99 0.006 85);
+  --color-surface-2: oklch(0.93 0.012 85);
+  --color-border: oklch(0.82 0.02 85);
+  --color-fg: oklch(0.25 0.02 60);
+  --color-fg-dim: oklch(0.5 0.02 70);
+  --color-accent: oklch(0.55 0.2 25);
+  --color-accent-strong: oklch(0.5 0.21 25);
+  --color-warn: oklch(0.62 0.16 60);
+  --color-danger: oklch(0.5 0.21 25);
+  --color-ok: oklch(0.5 0.13 150);
+  --color-on-accent: oklch(0.98 0 0);
+
+  --readout-bg: var(--color-surface);
+  --readout-border: 1.5px solid var(--color-fg);
+  --readout-shadow: 3px 3px 0 color-mix(in oklab, var(--color-fg) 18%, transparent);
+  --readout-grid: none;
+  --readout-grid-opacity: 0;
+  --readout-fg: var(--color-fg);
+  --readout-glow: none;
+  --status-glow: none;
 }
 
 html,
@@ -24,15 +173,14 @@ body,
 }
 
 body {
-  font-family:
-    "Inter",
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    "Helvetica Neue",
-    Arial,
-    sans-serif;
+  font-family: var(--font-body);
+}
+
+/* Accessibility floor: a visible keyboard focus ring everywhere. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 /* Register custom names as utilities so @apply can reference them
@@ -51,11 +199,27 @@ body {
   @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
 }
 
+/* Section label voice: a small mono eyebrow that reads like a readout
+   field name. Replaces the generic uppercase-tracking-wide gray header. */
+@utility eyebrow {
+  @apply text-xs font-bold uppercase tracking-[0.18em];
+  font-family: var(--font-mono);
+  color: var(--color-fg-dim);
+}
+
+/* Bracketed status tag — the handheld vernacular: [ ONLINE ] / [ DARK ].
+   Use modifiers .is-on / .is-warn for color; default is dim/offline. */
+@utility status {
+  @apply inline-flex items-center text-xs font-bold uppercase tracking-wider;
+  font-family: var(--font-mono);
+  color: var(--color-fg-dim);
+}
+
 @layer components {
   .btn-primary {
     @apply btn;
     background: var(--color-accent);
-    color: oklch(0.18 0.02 250);
+    color: var(--color-on-accent);
   }
   .btn-primary:hover {
     background: var(--color-accent-strong);
@@ -140,5 +304,56 @@ body {
   .label {
     @apply mb-1 block text-sm font-medium;
     color: var(--color-fg-dim);
+  }
+
+  /* Bracketed status tag — brackets are drawn, not typed, so the label
+     text stays copy-clean. */
+  .status::before {
+    content: "[\00a0";
+    opacity: 0.55;
+  }
+  .status::after {
+    content: "\00a0]";
+    opacity: 0.55;
+  }
+  .status.is-on {
+    color: var(--color-ok);
+    text-shadow: var(--status-glow);
+  }
+  .status.is-warn {
+    color: var(--color-warn);
+  }
+  .status.is-danger {
+    color: var(--color-danger);
+  }
+
+  /* SIGNATURE: the handheld LCD readout panel. A recessed phosphor screen —
+     dark green glass, faint dot-matrix grid, soft inner shadow, glowing
+     mono figures. Reserved for the dashboard headline so it stays special. */
+  .lcd {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.875rem;
+    padding: 1rem 1.125rem;
+    background: var(--readout-bg);
+    border: var(--readout-border);
+    box-shadow: var(--readout-shadow);
+  }
+  /* Dot-matrix scanline grid — cheap static gradients, no animation
+     (Pi-friendly, reduced-motion safe by construction). Themes that want
+     a flat panel set --readout-grid: none. */
+  .lcd::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: var(--readout-grid);
+    opacity: var(--readout-grid-opacity);
+  }
+  /* The figures inside the readout — glow is themed (off for print/embossed). */
+  .lcd-readout {
+    font-family: var(--font-mono);
+    color: var(--readout-fg);
+    text-shadow: var(--readout-glow);
   }
 }

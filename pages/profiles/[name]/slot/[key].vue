@@ -148,7 +148,7 @@ async function saveSlot() {
 <template>
   <div class="flex flex-col gap-4">
     <header>
-      <p class="text-xs uppercase tracking-wide text-fg-dim">{{ rawName }}</p>
+      <p class="eyebrow">{{ rawName }}</p>
       <h1 class="text-xl font-bold">{{ pageTitle }}</h1>
     </header>
 
@@ -162,7 +162,7 @@ async function saveSlot() {
         and register it first.
       </p>
       <div class="flex items-center justify-between">
-        <p class="font-semibold">Devices</p>
+        <p class="eyebrow">Devices</p>
         <button class="btn-ghost text-sm" :disabled="busy" @click="loadDevices">
           <Spinner v-if="busy" size="sm" />
           <span>{{ busy ? "Loading…" : "Refresh" }}</span>
@@ -193,12 +193,8 @@ async function saveSlot() {
               </span>
             </div>
             <span
-              class="pill"
-              :class="
-                d.mounted
-                  ? 'bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok'
-                  : 'bg-surface-2 text-fg-dim'
-              "
+              class="status"
+              :class="d.mounted ? 'is-on' : 'is-warn'"
               >{{ d.mounted ? "mounted" : "mount to use" }}</span
             >
           </button>
@@ -216,7 +212,7 @@ async function saveSlot() {
     <!-- Step 2: browse for file -->
     <section v-else-if="step === 'browse'" class="flex flex-col gap-3">
       <div class="card flex flex-col gap-1">
-        <p class="text-xs uppercase tracking-wide text-fg-dim">Device</p>
+        <p class="eyebrow">Device</p>
         <p class="font-semibold">{{ selectedDevice?.nickname }}</p>
         <p class="text-xs text-fg-dim">{{ selectedDevice?.currentMountPath }}</p>
       </div>
@@ -290,7 +286,7 @@ async function saveSlot() {
     <!-- Step 3: confirm -->
     <section v-else-if="step === 'save'" class="flex flex-col gap-3">
       <div class="card flex flex-col gap-2">
-        <p class="text-xs uppercase tracking-wide text-fg-dim">{{ pageTitle }}</p>
+        <p class="eyebrow">{{ pageTitle }}</p>
         <p class="font-semibold">{{ selectedDevice?.nickname }}</p>
 
         <template v-if="selectedFolder">

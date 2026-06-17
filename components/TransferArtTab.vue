@@ -169,7 +169,7 @@ async function push() {
       <p v-if="planReason" class="text-warn text-xs">{{ planReason }}</p>
 
       <div class="flex items-center justify-between gap-2">
-        <h2 class="min-w-0 text-sm font-semibold uppercase tracking-wide text-fg-dim">
+        <h2 class="eyebrow min-w-0">
           <span class="text-fg">{{ neededAll.length }} needed</span>
           <template v-if="dupAll.length > 0"> · {{ dupAll.length }} on device</template>
         </h2>
@@ -195,7 +195,7 @@ async function push() {
         :key="sec.key"
         class="flex flex-col gap-2"
       >
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-fg-dim">
+        <h3 class="eyebrow">
           {{ sec.title }} <span class="text-fg-dim/70">· {{ sec.games.length }}</span>
         </h3>
         <div class="grid grid-cols-3 gap-4 sm:grid-cols-4">
@@ -244,7 +244,7 @@ async function push() {
       </section>
 
       <section v-if="noArt.length > 0" class="flex flex-col gap-2">
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-fg-dim">
+        <h3 class="eyebrow">
           No art yet <span class="text-fg-dim/70">· {{ noArt.length }}</span>
         </h3>
         <div class="grid grid-cols-3 gap-4 sm:grid-cols-4">

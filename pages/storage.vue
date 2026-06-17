@@ -30,6 +30,8 @@ interface StorageData {
   reclaimableBytes: number;
 }
 
+const { theme, themes } = useTheme();
+
 const { data, refresh, pending } = await useFetch<StorageData>("/api/storage");
 
 const devices = computed(() => data.value?.devices ?? []);
@@ -131,11 +133,40 @@ async function reclaim(): Promise<void> {
 
 <template>
   <div class="flex flex-col gap-5 pb-28">
+    <!-- Appearance / theme picker -->
+    <section class="flex flex-col gap-3">
+      <h2 class="eyebrow">Appearance</h2>
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <button
+          v-for="t in themes"
+          :key="t.id"
+          class="card flex items-center gap-3 text-left transition active:scale-[0.99]"
+          :class="theme === t.id ? 'ring-2 ring-accent' : 'hover:bg-surface-2'"
+          :aria-pressed="theme === t.id"
+          @click="theme = t.id"
+        >
+          <span class="flex shrink-0 overflow-hidden rounded-lg border border-border">
+            <span
+              v-for="c in t.swatch"
+              :key="c"
+              class="size-7"
+              :style="{ background: c }"
+            />
+          </span>
+          <span class="flex min-w-0 flex-1 flex-col">
+            <span class="flex items-center gap-2">
+              <span class="font-semibold">{{ t.label }}</span>
+              <span v-if="theme === t.id" class="status is-on text-[10px]">active</span>
+            </span>
+            <span class="text-xs text-fg-dim">{{ t.blurb }}</span>
+          </span>
+        </button>
+      </div>
+    </section>
+
     <!-- Device budgets -->
     <section class="flex flex-col gap-3">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">
-        Device space
-      </h2>
+      <h2 class="eyebrow">Device space</h2>
       <div v-if="pending && devices.length === 0" class="card flex items-center gap-3 text-fg-dim">
         <Spinner /> <span>Loading…</span>
       </div>
@@ -186,9 +217,7 @@ async function reclaim(): Promise<void> {
     <!-- Prune candidates -->
     <section class="flex flex-col gap-3">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">
-          Reclaim space
-        </h2>
+        <h2 class="eyebrow">Reclaim space</h2>
         <label class="flex items-center gap-1.5 text-xs text-fg-dim">
           <input v-model="unplayedOnly" type="checkbox" class="accent-accent" />
           Never-played only

@@ -267,7 +267,7 @@ function itemState(i: PlanItem): { text: string; cls: string } {
       <template v-else>
         <div class="flex items-center justify-between gap-2">
           <h2
-            class="min-w-0 text-sm font-semibold uppercase tracking-wide text-fg-dim"
+            class="eyebrow min-w-0"
           >
             <span class="text-fg">To {{ destLabel }}</span>
             · {{ transferable.length }} can transfer
@@ -305,7 +305,7 @@ function itemState(i: PlanItem): { text: string; cls: string } {
               class="row-button bg-surface-2"
               @click="toggleSystem(grp.system)"
             >
-              <span class="text-sm font-bold uppercase tracking-wide">
+              <span class="eyebrow">
                 {{ grp.system }}
                 <span class="text-fg-dim">· {{ grp.items.length }}</span>
               </span>

@@ -149,7 +149,7 @@ async function push() {
       <p v-if="planReason" class="text-warn text-xs">{{ planReason }}</p>
 
       <div class="flex items-center justify-between gap-2">
-        <h2 class="min-w-0 text-sm font-semibold uppercase tracking-wide text-fg-dim">
+        <h2 class="eyebrow min-w-0">
           <span class="text-fg">{{ needAll.length }} to update</span>
           <template v-if="sameAll.length > 0"> · {{ sameAll.length }} matching</template>
         </h2>
@@ -175,13 +175,13 @@ async function push() {
         :key="sec.key"
         class="flex flex-col gap-2"
       >
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-fg-dim">
+        <h3 class="eyebrow">
           {{ sec.title }} <span class="text-fg-dim/70">· {{ sec.games.length }}</span>
         </h3>
 
         <!-- Column header for the name grid. -->
         <div
-          class="grid grid-cols-[auto_1fr_1fr_1fr] items-center gap-x-3 px-2 text-[10px] font-semibold uppercase tracking-wide text-fg-dim/70"
+          class="eyebrow grid grid-cols-[auto_1fr_1fr_1fr] items-center gap-x-3 px-2"
         >
           <span class="w-5" aria-hidden="true"></span>
           <span>Canonical name</span>

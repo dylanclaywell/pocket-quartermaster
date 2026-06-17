@@ -146,26 +146,39 @@ const anyPending = computed(
   <div class="flex flex-col gap-5">
     <!-- Dashboard summary -->
     <section v-if="hasActivity" class="flex flex-col gap-3">
-      <!-- Headline tiles -->
-      <div class="grid grid-cols-3 gap-2">
-        <div class="card flex flex-col items-center gap-0.5 py-3 text-center">
-          <span class="text-lg font-semibold">{{ formatDuration(totalSeconds) }}</span>
-          <span class="text-[11px] uppercase tracking-wide text-fg-dim">Total played</span>
+      <!-- SIGNATURE: handheld LCD readout — the dashboard headline as a
+           single glowing phosphor screen. -->
+      <div class="lcd grid grid-cols-3 gap-3">
+        <div class="flex flex-col items-center gap-1 text-center">
+          <span class="lcd-readout text-xl font-bold leading-none">
+            {{ formatDuration(totalSeconds) }}
+          </span>
+          <span class="text-[10px] font-bold uppercase tracking-[0.18em] text-fg-dim">
+            Field hours
+          </span>
         </div>
-        <div class="card flex flex-col items-center gap-0.5 py-3 text-center">
-          <span class="text-lg font-semibold">{{ games.length }}</span>
-          <span class="text-[11px] uppercase tracking-wide text-fg-dim">Games</span>
+        <div class="flex flex-col items-center gap-1 text-center">
+          <span class="lcd-readout text-xl font-bold leading-none">
+            {{ games.length }}
+          </span>
+          <span class="text-[10px] font-bold uppercase tracking-[0.18em] text-fg-dim">
+            Titles
+          </span>
         </div>
-        <div class="card flex flex-col items-center gap-0.5 py-3 text-center">
-          <span class="text-lg font-semibold">{{ totalSessions }}</span>
-          <span class="text-[11px] uppercase tracking-wide text-fg-dim">Sessions</span>
+        <div class="flex flex-col items-center gap-1 text-center">
+          <span class="lcd-readout text-xl font-bold leading-none">
+            {{ totalSessions }}
+          </span>
+          <span class="text-[10px] font-bold uppercase tracking-[0.18em] text-fg-dim">
+            Sessions
+          </span>
         </div>
       </div>
 
       <!-- This week -->
       <div class="card flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
-          <span class="text-xs font-semibold uppercase tracking-wide text-fg-dim">
+          <span class="eyebrow">
             This week
           </span>
           <span v-if="trends?.haveHistory" class="text-xs text-fg-dim">
@@ -183,7 +196,7 @@ const anyPending = computed(
 
       <!-- Hours by device -->
       <div v-if="byDevice.length > 1" class="card flex flex-col gap-1.5">
-        <span class="text-xs font-semibold uppercase tracking-wide text-fg-dim">
+        <span class="eyebrow">
           By device
         </span>
         <div
@@ -199,7 +212,7 @@ const anyPending = computed(
 
     <!-- Top played -->
     <section v-if="topPlayed.length > 0" class="flex flex-col gap-3">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">
+      <h2 class="eyebrow">
         Most played
       </h2>
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
@@ -210,7 +223,7 @@ const anyPending = computed(
     <!-- Recently played -->
     <section class="flex flex-col gap-3">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">
+        <h2 class="eyebrow">
           Recently played
         </h2>
         <NuxtLink
@@ -245,7 +258,7 @@ const anyPending = computed(
     <!-- Devices at a glance -->
     <section class="flex flex-col gap-2">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">
+        <h2 class="eyebrow">
           Devices
         </h2>
         <NuxtLink to="/devices" class="text-xs text-fg-dim hover:text-fg">
@@ -278,15 +291,8 @@ const anyPending = computed(
                 <template v-else>Not yet mounted</template>
               </span>
             </div>
-            <span
-              class="pill"
-              :class="
-                d.mounted
-                  ? 'bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok'
-                  : 'bg-surface-2 text-fg-dim'
-              "
-            >
-              {{ d.mounted ? "online" : "offline" }}
+            <span class="status" :class="d.mounted ? 'is-on' : ''">
+              {{ d.mounted ? "online" : "dark" }}
             </span>
           </NuxtLink>
         </li>
@@ -296,7 +302,7 @@ const anyPending = computed(
     <!-- Profiles needing attention -->
     <section v-if="attentionProfiles.length > 0" class="flex flex-col gap-2">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-warn">
+        <h2 class="eyebrow" style="color: var(--color-warn)">
           Needs attention
         </h2>
         <NuxtLink to="/profiles" class="text-xs text-fg-dim hover:text-fg">
@@ -312,11 +318,7 @@ const anyPending = computed(
                 {{ profileDevicesSummary(p) }}
               </span>
             </div>
-            <span
-              class="pill bg-[color-mix(in_oklab,var(--color-warn)_25%,transparent)] text-warn"
-            >
-              incomplete
-            </span>
+            <span class="status is-warn">awaiting supply</span>
           </NuxtLink>
         </li>
       </ul>
@@ -324,7 +326,7 @@ const anyPending = computed(
 
     <!-- Quick actions -->
     <section class="flex flex-col gap-2">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">
+      <h2 class="eyebrow">
         Quick actions
       </h2>
       <div class="flex flex-wrap gap-2">

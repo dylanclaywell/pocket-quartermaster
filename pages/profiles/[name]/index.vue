@@ -252,7 +252,7 @@ function dropdownLabel(s: SlotResolved): string {
 
     <section v-if="ready" class="card flex flex-col gap-3">
       <div>
-        <p class="font-semibold">Transfer</p>
+        <p class="eyebrow">Transfer</p>
         <p class="text-xs text-fg-dim">
           Pick which device is the source of truth and which receives the copy.
           A timestamped backup is saved before any overwrite.
@@ -261,7 +261,7 @@ function dropdownLabel(s: SlotResolved): string {
 
       <div class="grid gap-3 sm:grid-cols-2">
         <label class="flex flex-col gap-1 text-sm">
-          <span class="text-xs uppercase tracking-wide text-fg-dim">Source</span>
+          <span class="eyebrow">Source</span>
           <select v-model="sourceSlotId" class="rounded-lg border border-border bg-surface-2 px-3 py-2">
             <option :value="null">— pick a source —</option>
             <option v-for="s in slots" :key="s.slotId" :value="s.slotId" :disabled="!sourceCandidates.includes(s)">
@@ -270,7 +270,7 @@ function dropdownLabel(s: SlotResolved): string {
           </select>
         </label>
         <label class="flex flex-col gap-1 text-sm">
-          <span class="text-xs uppercase tracking-wide text-fg-dim">Destination</span>
+          <span class="eyebrow">Destination</span>
           <select v-model="destinationSlotId" class="rounded-lg border border-border bg-surface-2 px-3 py-2">
             <option :value="null">— pick a destination —</option>
             <option

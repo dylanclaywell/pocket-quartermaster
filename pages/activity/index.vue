@@ -167,7 +167,7 @@ function hasScanError(row: ScanResultRow): boolean {
         :aria-expanded="lastScanExpanded"
         @click="lastScanExpanded = !lastScanExpanded"
       >
-        <h2 class="text-sm font-semibold text-fg-dim">
+        <h2 class="eyebrow">
           <span aria-hidden="true" class="inline-block w-3">
             {{ lastScanExpanded ? "▾" : "▸" }}
           </span>
@@ -214,7 +214,7 @@ function hasScanError(row: ScanResultRow): boolean {
 
     <section class="flex flex-col gap-3">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <h2 class="font-semibold">Games</h2>
+        <h2 class="eyebrow">Games</h2>
         <div class="flex gap-1 text-xs">
           <button
             class="pill"
@@ -277,7 +277,7 @@ function hasScanError(row: ScanResultRow): boolean {
 
     <section v-if="devices.length > 0" class="flex flex-col gap-2">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold text-fg-dim">Sources</h2>
+        <h2 class="eyebrow">Sources</h2>
         <p class="text-xs text-fg-dim">
           {{ configuredCount }} configured · {{ cachedCount }} cached
         </p>

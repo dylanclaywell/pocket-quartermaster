@@ -313,7 +313,7 @@ async function scanVmRoms(v: VirtualMount) {
 
     <!-- Section: brand new mounts that need registering -->
     <section v-if="unregisteredMounts.length > 0" class="flex flex-col gap-2">
-      <h2 class="font-semibold">New mounts</h2>
+      <h2 class="eyebrow">New mounts</h2>
       <p class="text-xs text-fg-dim">
         Plugged-in volumes that aren't registered yet. Give one a nickname to start
         using it with Pocket Quartermaster.
@@ -368,7 +368,7 @@ async function scanVmRoms(v: VirtualMount) {
     <!-- Section: mounts with an orphaned marker — present on disk but missing
          from config. Reconnect re-adopts them with their original id. -->
     <section v-if="orphanedMounts.length > 0" class="flex flex-col gap-2">
-      <h2 class="font-semibold">Previously registered</h2>
+      <h2 class="eyebrow">Previously registered</h2>
       <p class="text-xs text-fg-dim">
         These mounts carry a Pocket Quartermaster marker but aren't in this
         computer's config — usually because they were registered on another
@@ -400,7 +400,7 @@ async function scanVmRoms(v: VirtualMount) {
 
     <!-- Section: every registered device. Click row → device detail. -->
     <section class="flex flex-col gap-2">
-      <h2 class="font-semibold">Registered devices</h2>
+      <h2 class="eyebrow">Registered devices</h2>
       <div v-if="busy && known.length === 0" class="flex items-center justify-center gap-3 py-6 text-fg-dim">
         <Spinner /> <span>Loading…</span>
       </div>
@@ -418,12 +418,8 @@ async function scanVmRoms(v: VirtualMount) {
               </span>
             </div>
             <span
-              class="pill"
-              :class="
-                d.mounted
-                  ? 'bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok'
-                  : 'bg-surface-2 text-fg-dim'
-              "
+              class="status"
+              :class="d.mounted ? 'is-on' : ''"
               >{{ d.mounted ? "mounted" : "absent" }}</span
             >
             <span aria-hidden="true" class="text-fg-dim">›</span>
@@ -449,7 +445,7 @@ async function scanVmRoms(v: VirtualMount) {
     <!-- Section: virtual mounts (folders treated as fake devices for testing) -->
     <section class="flex flex-col gap-2">
       <div class="flex items-center justify-between">
-        <h2 class="font-semibold">Virtual mounts</h2>
+        <h2 class="eyebrow">Virtual mounts</h2>
         <button
           v-if="configInfo?.virtualMountManagementEnabled"
           class="btn-ghost text-sm"
@@ -502,11 +498,11 @@ async function scanVmRoms(v: VirtualMount) {
           <div class="flex items-center justify-between gap-2">
             <p class="truncate font-semibold">{{ v.label || v.path }}</p>
             <span
-              class="pill"
+              class="status"
               :class="
                 v.exists && v.isDirectory
-                  ? 'bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok'
-                  : 'bg-[color-mix(in_oklab,var(--color-danger)_25%,transparent)] text-danger'
+                  ? 'is-on'
+                  : 'is-danger'
               "
             >
               {{ v.exists ? (v.isDirectory ? "ok" : "not a dir") : "missing" }}

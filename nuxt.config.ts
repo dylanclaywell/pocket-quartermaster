@@ -10,7 +10,7 @@ export default defineNuxtConfig({
       title: "Pocket Quartermaster",
       viewport: "width=device-width, initial-scale=1, viewport-fit=cover",
       meta: [
-        { name: "theme-color", content: "#0f172a" },
+        { name: "theme-color", content: "#11140f" },
         { name: "mobile-web-app-capable", content: "yes" },
       ],
       link: [
@@ -18,7 +18,7 @@ export default defineNuxtConfig({
         { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
         {
           rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+          href: "https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap",
         },
       ],
     },

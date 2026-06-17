@@ -56,11 +56,11 @@ function profileDevicesSummary(p: ProfileSummary): string {
               </span>
             </div>
             <span
-              class="pill"
+              class="status"
               :class="
                 p.ready
-                  ? 'bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok'
-                  : 'bg-[color-mix(in_oklab,var(--color-warn)_25%,transparent)] text-warn'
+                  ? 'is-on'
+                  : 'is-warn'
               "
             >
               {{ p.ready ? "ready" : "incomplete" }}
@@ -73,7 +73,7 @@ function profileDevicesSummary(p: ProfileSummary): string {
     <section>
       <div class="card flex items-center justify-between">
         <div>
-          <p class="font-semibold">Known devices</p>
+          <p class="eyebrow">Known devices</p>
           <p class="text-xs text-fg-dim">
             {{ devices.length }} registered
           </p>

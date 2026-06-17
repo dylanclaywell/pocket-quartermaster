@@ -257,7 +257,7 @@ onMounted(loadCached);
     <!-- Games -->
     <section class="flex flex-col gap-3">
       <div class="flex items-center justify-between gap-2">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-fg-dim">
+        <h2 class="eyebrow">
           Games
           <span v-if="games.length" class="text-fg-dim"
             >· {{ games.length }}</span
@@ -313,7 +313,7 @@ onMounted(loadCached);
             class="row-button bg-surface-2"
             @click="toggleSystem(grp.system)"
           >
-            <span class="text-sm font-bold uppercase tracking-wide">
+            <span class="eyebrow">
               {{ grp.system }}
               <span class="text-fg-dim">· {{ grp.games.length }}</span>
             </span>
@@ -362,7 +362,7 @@ onMounted(loadCached);
                 </div>
                 <span
                   v-if="g.hasMismatch"
-                  class="pill shrink-0 bg-[color-mix(in_oklab,var(--color-warn)_25%,transparent)] text-warn"
+                  class="status is-warn shrink-0"
                   title="A device has a variant installed that differs from its preferred variant"
                   >⚠</span
                 >

@@ -408,12 +408,8 @@ async function runRomsScan() {
         <div class="flex items-center justify-between gap-2">
           <h1 class="truncate text-xl font-bold">{{ device.nickname }}</h1>
           <span
-            class="pill"
-            :class="
-              device.mounted
-                ? 'bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok'
-                : 'bg-surface-2 text-fg-dim'
-            "
+            class="status"
+            :class="device.mounted ? 'is-on' : ''"
             >{{ device.mounted ? "mounted" : "absent" }}</span
           >
         </div>
@@ -441,10 +437,10 @@ async function runRomsScan() {
 
       <section class="card flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
-          <h2 class="font-semibold">RetroArch activity</h2>
+          <h2 class="eyebrow">RetroArch activity</h2>
           <span
             v-if="device.retroarchActivityDir"
-            class="pill bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok"
+            class="status is-on"
             >configured</span
           >
           <span v-else class="pill bg-surface-2 text-fg-dim">not set</span>
@@ -518,10 +514,10 @@ async function runRomsScan() {
 
       <section class="card flex flex-col gap-2">
         <div class="flex items-center justify-between gap-2">
-          <h2 class="font-semibold">ROM library</h2>
+          <h2 class="eyebrow">ROM library</h2>
           <span
             v-if="device.romsRootRelPath"
-            class="pill bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok"
+            class="status is-on"
             >configured</span
           >
           <span v-else class="pill bg-surface-2 text-fg-dim">not set</span>
@@ -574,7 +570,7 @@ async function runRomsScan() {
             <span class="label">ES-DE folder</span>
             <span
               v-if="device.esDeRootRelPath"
-              class="pill bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok"
+              class="status is-on"
               >set</span
             >
             <span v-else class="pill bg-surface-1 text-fg-dim">not set</span>
@@ -713,7 +709,7 @@ async function runRomsScan() {
             <span class="label">muOS folder</span>
             <span
               v-if="device.muosRootRelPath"
-              class="pill bg-[color-mix(in_oklab,var(--color-ok)_25%,transparent)] text-ok"
+              class="status is-on"
               >set</span
             >
             <span v-else class="pill bg-surface-1 text-fg-dim">not set</span>
@@ -860,7 +856,7 @@ async function runRomsScan() {
       </section>
 
       <section class="flex flex-col gap-2">
-        <h2 class="font-semibold">Save slots on this device</h2>
+        <h2 class="eyebrow">Save slots on this device</h2>
         <ul v-if="slots.length > 0" class="flex flex-col gap-2">
           <li v-for="s in slots" :key="`${s.profileName}-${s.slotId}`">
             <NuxtLink
@@ -886,7 +882,7 @@ async function runRomsScan() {
       </section>
 
       <section class="card flex flex-col gap-2">
-        <h2 class="font-semibold text-danger">Danger zone</h2>
+        <h2 class="eyebrow" style="color: var(--color-danger)">Danger zone</h2>
         <p class="text-xs text-fg-dim">
           Forgetting removes this device from the app. The marker file on the device
           is left in place so you can re-register later by mounting it.
