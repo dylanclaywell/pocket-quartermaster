@@ -356,4 +356,27 @@ body {
     color: var(--readout-fg);
     text-shadow: var(--readout-glow);
   }
+
+  /* Game tile: rise + accent ring + art zoom on hover/focus. The resting
+     state stays flat so a dense grid reads calm; the focused tile pops. */
+  .game-tile {
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+  .game-tile img,
+  .game-tile > div:first-child {
+    transition: transform 0.25s ease;
+  }
+  .game-tile:hover,
+  .game-tile:focus-visible {
+    transform: translateY(-4px);
+    box-shadow:
+      0 12px 26px -10px color-mix(in oklab, black 75%, transparent),
+      0 0 0 2px color-mix(in oklab, var(--color-accent) 70%, transparent);
+  }
+  .game-tile:hover img,
+  .game-tile:hover > div:first-child {
+    transform: scale(1.06);
+  }
 }
