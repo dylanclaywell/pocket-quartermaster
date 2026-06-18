@@ -217,10 +217,9 @@ async function saveSlot() {
         <p class="text-xs text-fg-dim">{{ selectedDevice?.currentMountPath }}</p>
       </div>
 
-      <label class="flex items-center gap-2 text-sm">
-        <input v-model="onlySaveExts" type="checkbox" class="size-5 accent-accent" />
+      <AppCheckbox v-model="onlySaveExts" class="text-sm">
         Only show save-file extensions
-      </label>
+      </AppCheckbox>
 
       <nav class="flex flex-wrap items-center gap-1 text-sm">
         <template v-for="(bc, i) in browse?.breadcrumbs ?? []" :key="bc.relPath">

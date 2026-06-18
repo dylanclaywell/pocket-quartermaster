@@ -322,11 +322,10 @@ function itemState(i: PlanItem): { text: string; cls: string } {
                   :disabled="Boolean(i.blocker) || i.alreadyInstalled"
                   @click="toggle(i.gameKey)"
                 >
-                  <input
-                    type="checkbox"
-                    class="pointer-events-none mt-1 size-4 shrink-0"
-                    tabindex="-1"
-                    :checked="selected.has(i.gameKey)"
+                  <AppCheckbox
+                    decorative
+                    class="mt-1"
+                    :model-value="selected.has(i.gameKey)"
                     :disabled="Boolean(i.blocker) || i.alreadyInstalled"
                   />
                   <div class="flex min-w-0 flex-1 flex-col">

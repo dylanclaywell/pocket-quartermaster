@@ -201,16 +201,14 @@ async function reclaim(): Promise<void> {
         <p v-else class="text-xs text-fg-dim">
           {{ d.mounted ? "Free space unknown" : "Offline — mount to see free space" }}
         </p>
-        <label class="flex items-center gap-1.5 text-xs text-fg-dim">
-          <input
-            type="checkbox"
-            class="accent-accent"
-            :checked="d.excludedFromReclaim"
-            :disabled="togglingExclude.has(d.romCacheKey)"
-            @change="toggleExclude(d)"
-          />
+        <AppCheckbox
+          class="text-xs text-fg-dim"
+          :model-value="d.excludedFromReclaim"
+          :disabled="togglingExclude.has(d.romCacheKey)"
+          @update:model-value="toggleExclude(d)"
+        >
           Exclude from reclaim suggestions
-        </label>
+        </AppCheckbox>
       </div>
     </section>
 
@@ -218,10 +216,9 @@ async function reclaim(): Promise<void> {
     <section class="flex flex-col gap-3">
       <div class="flex items-center justify-between gap-2">
         <h2 class="eyebrow">Reclaim space</h2>
-        <label class="flex items-center gap-1.5 text-xs text-fg-dim">
-          <input v-model="unplayedOnly" type="checkbox" class="accent-accent" />
+        <AppCheckbox v-model="unplayedOnly" class="text-xs text-fg-dim">
           Never-played only
-        </label>
+        </AppCheckbox>
       </div>
 
       <p v-if="data && data.totalCandidates > candidates.length" class="text-xs text-fg-dim">
@@ -244,11 +241,7 @@ async function reclaim(): Promise<void> {
             :class="selected.has(candidateId(c)) ? 'ring-2 ring-accent' : ''"
             @click="toggle(c)"
           >
-            <input
-              type="checkbox"
-              class="pointer-events-none mr-1 accent-accent"
-              :checked="selected.has(candidateId(c))"
-            />
+            <AppCheckbox decorative class="mr-1" :model-value="selected.has(candidateId(c))" />
             <div class="flex min-w-0 flex-1 flex-col">
               <span class="truncate font-semibold">{{ c.displayName }}</span>
               <span class="truncate text-xs text-fg-dim">
