@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { formatDuration, formatRelativeIso } from "~/composables/useFormat";
+import { systemFallbackBackground } from "~/composables/useGameVisuals";
 
 interface PerDevice {
   cacheKey: string;
@@ -60,19 +61,11 @@ const thumbnailUrl = computed(() => {
   return `/api/thumbnails/${encodeURIComponent(game.value.normalizedName)}?v=${thumbnailVersion.value}`;
 });
 
-function systemHue(name: string): number {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) {
-    h = ((h << 5) - h + name.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h) % 360;
-}
-
-const fallbackBackground = computed(() => {
-  if (!game.value) return "";
-  const hue = systemHue(game.value.system ?? game.value.cores[0] ?? "unknown");
-  return `linear-gradient(135deg, hsl(${hue}, 60%, 28%) 0%, hsl(${(hue + 30) % 360}, 55%, 12%) 100%)`;
-});
+const fallbackBackground = computed(() =>
+  game.value
+    ? systemFallbackBackground(game.value.system ?? game.value.cores[0] ?? "unknown")
+    : "",
+);
 
 async function loadGame() {
   loading.value = true;

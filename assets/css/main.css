@@ -61,6 +61,17 @@
   --readout-glow: 0 0 10px
     color-mix(in oklab, var(--color-accent) 60%, transparent);
   --status-glow: 0 0 8px color-mix(in oklab, var(--color-ok) 55%, transparent);
+
+  /* System palette — the per-system colors (tile stripe/dot, fallback art).
+     useGameVisuals builds oklch() from a per-system hue + tone; these tokens
+     set lightness/chroma so the palette tracks the theme. Mono themes also
+     set --sys-h to pin every system to one hue (distinction then comes from
+     the per-system lightness tone). Default = vivid multi-hue (LCD). */
+  --sys-l: 0.68;
+  --sys-c: 0.15;
+  --sys-bg-l: 0.42;
+  --sys-bg-l2: 0.24;
+  --sys-bg-c: 0.09;
 }
 
 /* ── Theme: Cartridge / depot ─────────────────────────────────────────
@@ -113,6 +124,13 @@ html[data-theme="phosphor"] {
   --color-on-accent: oklch(0.14 0.01 70);
   --font-body: var(--font-mono);
 
+  --sys-h: 75;
+  --sys-l: 0.72;
+  --sys-c: 0.045;
+  --sys-bg-l: 0.26;
+  --sys-bg-l2: 0.16;
+  --sys-bg-c: 0.04;
+
   --readout-bg: radial-gradient(
     120% 140% at 50% 0%,
     oklch(0.2 0.03 70) 0%,
@@ -153,6 +171,12 @@ html[data-theme="paper"] {
   --color-ok: oklch(0.5 0.13 150);
   --color-on-accent: oklch(0.98 0 0);
 
+  --sys-l: 0.55;
+  --sys-c: 0.17;
+  --sys-bg-l: 0.58;
+  --sys-bg-l2: 0.42;
+  --sys-bg-c: 0.1;
+
   --readout-bg: var(--color-surface);
   --readout-border: 1.5px solid var(--color-fg);
   --readout-shadow: 3px 3px 0 color-mix(in oklab, var(--color-fg) 18%, transparent);
@@ -181,6 +205,13 @@ html[data-theme="gbpocket"] {
   --color-ok: oklch(0.32 0.06 150);
   --color-on-accent: oklch(0.82 0.02 150);
   --font-body: var(--font-mono);
+
+  --sys-h: 150;
+  --sys-l: 0.42;
+  --sys-c: 0.03;
+  --sys-bg-l: 0.6;
+  --sys-bg-l2: 0.5;
+  --sys-bg-c: 0.025;
 
   --readout-bg: linear-gradient(
     180deg,
@@ -221,6 +252,13 @@ html[data-theme="virtualboy"] {
   --color-ok: oklch(0.64 0.25 27);
   --color-on-accent: oklch(0.06 0.02 25);
   --font-body: var(--font-mono);
+
+  --sys-h: 27;
+  --sys-l: 0.6;
+  --sys-c: 0.06;
+  --sys-bg-l: 0.2;
+  --sys-bg-l2: 0.1;
+  --sys-bg-c: 0.05;
 
   --readout-bg: radial-gradient(
     120% 140% at 50% 0%,
@@ -263,6 +301,13 @@ html[data-theme="blueprint"] {
   --color-ok: oklch(0.83 0.13 200);
   --color-on-accent: oklch(0.2 0.06 250);
 
+  --sys-h: 220;
+  --sys-l: 0.72;
+  --sys-c: 0.1;
+  --sys-bg-l: 0.34;
+  --sys-bg-l2: 0.22;
+  --sys-bg-c: 0.07;
+
   --readout-bg: linear-gradient(
     180deg,
     color-mix(in oklab, var(--color-surface) 90%, black 10%),
@@ -301,6 +346,12 @@ html[data-theme="synthwave"] {
   --color-danger: oklch(0.66 0.22 20);
   --color-ok: oklch(0.79 0.14 195);
   --color-on-accent: oklch(0.15 0.06 300);
+
+  --sys-l: 0.72;
+  --sys-c: 0.21;
+  --sys-bg-l: 0.34;
+  --sys-bg-l2: 0.2;
+  --sys-bg-c: 0.13;
 
   --readout-bg: radial-gradient(
     90% 130% at 50% 125%,
@@ -344,6 +395,12 @@ html[data-theme="bubblegum"] {
   --color-ok: oklch(0.7 0.15 200);
   --color-on-accent: oklch(0.99 0 0);
 
+  --sys-l: 0.6;
+  --sys-c: 0.2;
+  --sys-bg-l: 0.6;
+  --sys-bg-l2: 0.45;
+  --sys-bg-c: 0.12;
+
   --readout-bg: linear-gradient(
     180deg,
     var(--color-surface),
@@ -375,6 +432,12 @@ html[data-theme="hotdog"] {
   --color-danger: oklch(0.4 0.24 27);
   --color-ok: oklch(0.5 0.16 145);
   --color-on-accent: oklch(0.98 0 0);
+
+  --sys-l: 0.55;
+  --sys-c: 0.23;
+  --sys-bg-l: 0.4;
+  --sys-bg-l2: 0.24;
+  --sys-bg-c: 0.14;
 
   --readout-bg: var(--color-surface);
   --readout-border: 3px solid var(--color-fg);
