@@ -163,6 +163,229 @@ html[data-theme="paper"] {
   --status-glow: none;
 }
 
+/* ── Theme: Pocket LCD ────────────────────────────────────────────────
+   The Game Boy Pocket screen: near-monochrome grey-green, reflective (not
+   backlit), so everything is dark-on-light with no glow. Accents are the
+   darkest ink, the way a segment LCD only has on/off pixels. */
+html[data-theme="gbpocket"] {
+  --color-bg: oklch(0.7 0.022 150);
+  --color-surface: oklch(0.75 0.024 150);
+  --color-surface-2: oklch(0.65 0.026 150);
+  --color-border: oklch(0.38 0.025 150);
+  --color-fg: oklch(0.21 0.022 150);
+  --color-fg-dim: oklch(0.42 0.024 150);
+  --color-accent: oklch(0.27 0.03 150);
+  --color-accent-strong: oklch(0.2 0.03 150);
+  --color-warn: oklch(0.45 0.1 80);
+  --color-danger: oklch(0.4 0.16 28);
+  --color-ok: oklch(0.32 0.06 150);
+  --color-on-accent: oklch(0.82 0.02 150);
+  --font-body: var(--font-mono);
+
+  --readout-bg: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--color-bg) 96%, white 4%),
+    var(--color-bg)
+  );
+  --readout-border: 1.5px solid var(--color-fg);
+  --readout-shadow:
+    inset 0 1px 0 color-mix(in oklab, white 20%, transparent),
+    inset 0 0 24px color-mix(in oklab, black 18%, transparent);
+  --readout-grid: repeating-linear-gradient(
+    0deg,
+    color-mix(in oklab, var(--color-fg) 14%, transparent) 0px,
+    color-mix(in oklab, var(--color-fg) 14%, transparent) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  --readout-grid-opacity: 0.4;
+  --readout-fg: var(--color-fg);
+  --readout-glow: none;
+  --status-glow: none;
+}
+
+/* ── Theme: Virtual Boy ───────────────────────────────────────────────
+   Nintendo's red LED display: pure red light on absolute black, nothing
+   else. All-mono, dense glowing scanlines, every accent a shade of red. */
+html[data-theme="virtualboy"] {
+  --color-bg: oklch(0.08 0.025 25);
+  --color-surface: oklch(0.12 0.05 25);
+  --color-surface-2: oklch(0.16 0.07 25);
+  --color-border: oklch(0.32 0.13 27);
+  --color-fg: oklch(0.62 0.23 27);
+  --color-fg-dim: oklch(0.44 0.19 27);
+  --color-accent: oklch(0.64 0.25 27);
+  --color-accent-strong: oklch(0.72 0.27 27);
+  --color-warn: oklch(0.66 0.21 40);
+  --color-danger: oklch(0.74 0.28 27);
+  --color-ok: oklch(0.64 0.25 27);
+  --color-on-accent: oklch(0.06 0.02 25);
+  --font-body: var(--font-mono);
+
+  --readout-bg: radial-gradient(
+    120% 140% at 50% 0%,
+    oklch(0.18 0.08 27) 0%,
+    oklch(0.1 0.05 27) 60%,
+    oklch(0.06 0.03 27) 100%
+  );
+  --readout-border: 1px solid
+    color-mix(in oklab, var(--color-accent) 35%, var(--color-border));
+  --readout-shadow:
+    inset 0 0 44px color-mix(in oklab, black 70%, transparent),
+    inset 0 0 10px color-mix(in oklab, var(--color-accent) 30%, transparent);
+  --readout-grid: repeating-linear-gradient(
+    0deg,
+    color-mix(in oklab, var(--color-accent) 16%, transparent) 0px,
+    color-mix(in oklab, var(--color-accent) 16%, transparent) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  --readout-grid-opacity: 0.75;
+  --readout-fg: var(--color-accent-strong);
+  --readout-glow: 0 0 14px color-mix(in oklab, var(--color-accent) 80%, transparent);
+  --status-glow: 0 0 12px color-mix(in oklab, var(--color-ok) 70%, transparent);
+}
+
+/* ── Theme: Blueprint ─────────────────────────────────────────────────
+   Drafting-table print: cyan and white lines on deep navy. The readout
+   becomes a gridded blueprint sheet — faint, no glow, all measurement. */
+html[data-theme="blueprint"] {
+  --color-bg: oklch(0.22 0.06 250);
+  --color-surface: oklch(0.27 0.07 250);
+  --color-surface-2: oklch(0.32 0.08 250);
+  --color-border: oklch(0.5 0.1 240);
+  --color-fg: oklch(0.95 0.03 230);
+  --color-fg-dim: oklch(0.78 0.06 230);
+  --color-accent: oklch(0.82 0.13 220);
+  --color-accent-strong: oklch(0.9 0.14 215);
+  --color-warn: oklch(0.85 0.13 90);
+  --color-danger: oklch(0.68 0.19 25);
+  --color-ok: oklch(0.83 0.13 200);
+  --color-on-accent: oklch(0.2 0.06 250);
+
+  --readout-bg: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--color-surface) 90%, black 10%),
+    var(--color-bg)
+  );
+  --readout-border: 1px solid
+    color-mix(in oklab, var(--color-accent) 40%, var(--color-border));
+  --readout-shadow: inset 0 0 30px color-mix(in oklab, black 35%, transparent);
+  --readout-grid: repeating-linear-gradient(
+    0deg,
+    color-mix(in oklab, var(--color-accent) 18%, transparent) 0px,
+    color-mix(in oklab, var(--color-accent) 18%, transparent) 1px,
+    transparent 1px,
+    transparent 8px
+  );
+  --readout-grid-opacity: 0.6;
+  --readout-fg: var(--color-accent-strong);
+  --readout-glow: none;
+  --status-glow: 0 0 6px color-mix(in oklab, var(--color-ok) 45%, transparent);
+}
+
+/* ── Theme: Synthwave / outrun ────────────────────────────────────────
+   Twilight purple with magenta + cyan neon. The readout is the genre
+   cliché done right: a glowing sun rising from the bottom edge behind a
+   magenta scanline grid. Loud, but dark — not bubblegum bright. */
+html[data-theme="synthwave"] {
+  --color-bg: oklch(0.16 0.08 300);
+  --color-surface: oklch(0.21 0.1 300);
+  --color-surface-2: oklch(0.26 0.11 300);
+  --color-border: oklch(0.45 0.15 320);
+  --color-fg: oklch(0.93 0.04 320);
+  --color-fg-dim: oklch(0.72 0.09 320);
+  --color-accent: oklch(0.7 0.24 350);
+  --color-accent-strong: oklch(0.76 0.26 350);
+  --color-warn: oklch(0.83 0.16 80);
+  --color-danger: oklch(0.66 0.22 20);
+  --color-ok: oklch(0.79 0.14 195);
+  --color-on-accent: oklch(0.15 0.06 300);
+
+  --readout-bg: radial-gradient(
+    90% 130% at 50% 125%,
+    oklch(0.78 0.2 60) 0%,
+    oklch(0.7 0.24 350) 35%,
+    oklch(0.24 0.12 300) 70%,
+    oklch(0.16 0.08 300) 100%
+  );
+  --readout-border: 1px solid
+    color-mix(in oklab, var(--color-accent) 45%, var(--color-border));
+  --readout-shadow:
+    inset 0 0 40px color-mix(in oklab, black 45%, transparent),
+    inset 0 0 12px color-mix(in oklab, var(--color-accent) 30%, transparent);
+  --readout-grid: repeating-linear-gradient(
+    0deg,
+    color-mix(in oklab, var(--color-accent) 22%, transparent) 0px,
+    color-mix(in oklab, var(--color-accent) 22%, transparent) 1px,
+    transparent 1px,
+    transparent 6px
+  );
+  --readout-grid-opacity: 0.5;
+  --readout-fg: var(--color-fg);
+  --readout-glow: 0 0 12px color-mix(in oklab, var(--color-accent) 70%, transparent);
+  --status-glow: 0 0 10px color-mix(in oklab, var(--color-ok) 60%, transparent);
+}
+
+/* ── Theme: Bubblegum ─────────────────────────────────────────────────
+   Mallsoft: hot pink and cyan on pink-cream. Light and loud at once. The
+   readout is a glossy sticker — pink border, offset cyan drop. */
+html[data-theme="bubblegum"] {
+  --color-bg: oklch(0.94 0.03 350);
+  --color-surface: oklch(0.98 0.02 340);
+  --color-surface-2: oklch(0.91 0.05 340);
+  --color-border: oklch(0.8 0.1 350);
+  --color-fg: oklch(0.3 0.1 350);
+  --color-fg-dim: oklch(0.55 0.13 350);
+  --color-accent: oklch(0.65 0.25 350);
+  --color-accent-strong: oklch(0.6 0.27 350);
+  --color-warn: oklch(0.72 0.16 70);
+  --color-danger: oklch(0.58 0.24 20);
+  --color-ok: oklch(0.7 0.15 200);
+  --color-on-accent: oklch(0.99 0 0);
+
+  --readout-bg: linear-gradient(
+    180deg,
+    var(--color-surface),
+    color-mix(in oklab, var(--color-surface) 88%, var(--color-accent) 12%)
+  );
+  --readout-border: 2px solid var(--color-accent);
+  --readout-shadow: 4px 4px 0 color-mix(in oklab, var(--color-ok) 70%, transparent);
+  --readout-grid: none;
+  --readout-grid-opacity: 0;
+  --readout-fg: var(--color-accent-strong);
+  --readout-glow: none;
+  --status-glow: none;
+}
+
+/* ── Theme: Hot Dog Stand ─────────────────────────────────────────────
+   The infamous Windows 3.1 scheme. Fire-engine red, school-bus yellow,
+   black ink. No subtlety, no apology. The readout is a blocky yellow sign
+   with a hard black border and offset shadow — a literal hot dog stand. */
+html[data-theme="hotdog"] {
+  --color-bg: oklch(0.55 0.24 27);
+  --color-surface: oklch(0.92 0.18 100);
+  --color-surface-2: oklch(0.87 0.19 95);
+  --color-border: oklch(0.2 0.02 60);
+  --color-fg: oklch(0.18 0.02 60);
+  --color-fg-dim: oklch(0.4 0.16 35);
+  --color-accent: oklch(0.5 0.24 27);
+  --color-accent-strong: oklch(0.44 0.25 27);
+  --color-warn: oklch(0.6 0.2 50);
+  --color-danger: oklch(0.4 0.24 27);
+  --color-ok: oklch(0.5 0.16 145);
+  --color-on-accent: oklch(0.98 0 0);
+
+  --readout-bg: var(--color-surface);
+  --readout-border: 3px solid var(--color-fg);
+  --readout-shadow: 4px 4px 0 var(--color-accent);
+  --readout-grid: none;
+  --readout-grid-opacity: 0;
+  --readout-fg: var(--color-accent-strong);
+  --readout-glow: none;
+  --status-glow: none;
+}
+
 html,
 body,
 #__nuxt {

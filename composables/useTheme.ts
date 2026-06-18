@@ -25,6 +25,42 @@ export const THEMES = [
     blurb: "Cream stock, ink, spot red. Light — a printed booklet.",
     swatch: ["#f2ecdd", "#b3261e", "#2b2b2b"],
   },
+  {
+    id: "gbpocket",
+    label: "Pocket LCD",
+    blurb: "Black on grey-green reflective LCD. High-contrast mono, no glow.",
+    swatch: ["#a7b4a0", "#2f3a2c", "#95a48d"],
+  },
+  {
+    id: "virtualboy",
+    label: "Virtual Boy",
+    blurb: "Blood-red phosphor on black. All-mono, glowing scanlines. Eye-searing.",
+    swatch: ["#0a0506", "#e8253a", "#2a0d10"],
+  },
+  {
+    id: "blueprint",
+    label: "Blueprint",
+    blurb: "Cyan lines on deep navy. Drafting-table grid. Cool and technical.",
+    swatch: ["#1c2b52", "#6cc6e8", "#3a4a7a"],
+  },
+  {
+    id: "synthwave",
+    label: "Synthwave",
+    blurb: "Magenta + cyan on twilight purple. Neon sun, perspective grid.",
+    swatch: ["#1a1030", "#ff48b0", "#3a2058"],
+  },
+  {
+    id: "bubblegum",
+    label: "Bubblegum",
+    blurb: "Hot pink + cyan on cream. Mallsoft. Loud, but light.",
+    swatch: ["#f7e6ef", "#ff4fa3", "#f3c9dd"],
+  },
+  {
+    id: "hotdog",
+    label: "Hot Dog Stand",
+    blurb: "Win 3.1 red-on-yellow. Loud, obnoxious, unrepentant.",
+    swatch: ["#cf2317", "#f2cf2a", "#1c1c1c"],
+  },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];
