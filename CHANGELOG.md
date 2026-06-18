@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.5.0](https://github.com/dylanclaywell/pocket-quartermaster/compare/pocket-quartermaster-v0.4.0...pocket-quartermaster-v0.5.0) (2026-06-18)
+
+
+### Features
+
+* add activity dashboard with playtime trends to home ([e25bc64](https://github.com/dylanclaywell/pocket-quartermaster/commit/e25bc646b175b1a5ce87398905764989901e69af))
+* add AppSelect and replace native selects ([34cc931](https://github.com/dylanclaywell/pocket-quartermaster/commit/34cc931de0e77014195215ac5e2473f61e9743df))
+* add dashboard and move profiles to /profiles ([5c7ce1d](https://github.com/dylanclaywell/pocket-quartermaster/commit/5c7ce1da2e6423a354687f8ce9337c970545f1c6))
+* add ES-DE art harvest and esDeRoot refactor ([a49277c](https://github.com/dylanclaywell/pocket-quartermaster/commit/a49277ce3c86173c10a13a8fc5f6c5d591c59b84))
+* add launcher metadata writer and ES-DE support ([e9ca60b](https://github.com/dylanclaywell/pocket-quartermaster/commit/e9ca60b5eaa32d61e610fdc244ebb9a236c22d5e))
+* add Names tab to push display names to a destination ([3c1f0f3](https://github.com/dylanclaywell/pocket-quartermaster/commit/3c1f0f333c9a3556250953e6bd1110cc68515876))
+* add Pocket LCD, Virtual Boy, Blueprint, Synthwave, Bubblegum, and Hot Dog Stand themes ([3d81ccd](https://github.com/dylanclaywell/pocket-quartermaster/commit/3d81ccd7fe576c6f8778a87015bf1a95bb7e0d40))
+* add ROM library scanning and UI ([765c8bf](https://github.com/dylanclaywell/pocket-quartermaster/commit/765c8bfc34fc9b780ff01e96a705d83b8b766d16))
+* add ROM transfer & single-library selection ([6e312bd](https://github.com/dylanclaywell/pocket-quartermaster/commit/6e312bda5e55488a8e7d1c885d36786517ee4048))
+* add storage page ([0d8b638](https://github.com/dylanclaywell/pocket-quartermaster/commit/0d8b6385726feb08d9023bbc61cc7a1bc0df1328))
+* collapse header nav into a mobile drawer; rename Storage to System ([6d58d62](https://github.com/dylanclaywell/pocket-quartermaster/commit/6d58d626c8da37aff078bcac5a1ae073e1b8b742))
+* give the app a retro-handheld identity with swappable themes ([f80c856](https://github.com/dylanclaywell/pocket-quartermaster/commit/f80c8565f64d3e346239cad7d89fa968a853c77d))
+* lift game tiles and color-code them by system ([73c84e0](https://github.com/dylanclaywell/pocket-quartermaster/commit/73c84e03e4e5c4b2a20205e91c09a2766f27dd27))
+* make per-system colors track the active theme ([32c3760](https://github.com/dylanclaywell/pocket-quartermaster/commit/32c37609fa1b9ede786ac974c83346e1c235e99c))
+* multi-source ROM catalog with any-to-any transfer ([3f1861c](https://github.com/dylanclaywell/pocket-quartermaster/commit/3f1861cd828c3064015f7927e4e19e0c7a2f1357))
+* push and harvest box art for muOS ([318080d](https://github.com/dylanclaywell/pocket-quartermaster/commit/318080db4a9026f65f3d127d4846b7b169404d15))
+* push box art to ES-DE with selectable preview grid and per-device resize ([f1a936c](https://github.com/dylanclaywell/pocket-quartermaster/commit/f1a936c1a7f35c38b297619ad2477ac4622cec6c))
+* reconcile needed vs existing art before pushing ([81803fd](https://github.com/dylanclaywell/pocket-quartermaster/commit/81803fd35ce35a96d7d26a489e7be6776411a373))
+* reconnect devices registered on another computer ([eae35a3](https://github.com/dylanclaywell/pocket-quartermaster/commit/eae35a3439cd7c3499cc151b15d8df20811575e9))
+* ROM variant management with master/destination roles ([ea511e1](https://github.com/dylanclaywell/pocket-quartermaster/commit/ea511e1f79d3624982e2e71c7168722622bc28d4))
+* set box art from the ROM game detail page ([c81e6db](https://github.com/dylanclaywell/pocket-quartermaster/commit/c81e6dbbfcfe5f9e93cc33abe015cbf03b5088b0))
+* standardize checkboxes behind a themed AppCheckbox component ([653bb02](https://github.com/dylanclaywell/pocket-quartermaster/commit/653bb02ec2ee0903adbcd1ea8ade47656297ec13))
+* write clean game names to muOS ([a929ffd](https://github.com/dylanclaywell/pocket-quartermaster/commit/a929ffdc5caa852e4152edac2cab02810c68bce4))
+
+
+### Bug Fixes
+
+* make Windows device eject actually unmount and verify it ([03c7e22](https://github.com/dylanclaywell/pocket-quartermaster/commit/03c7e228d58f10d3ba67e49a4a2230269c3ec49c))
+
+
+### Chores
+
+* added plans ([4b70afb](https://github.com/dylanclaywell/pocket-quartermaster/commit/4b70afb442384dd783768ddaf2c1b5e1caeaf936))
+* complete ROM & Activity plans; update muOS label ([c7c651a](https://github.com/dylanclaywell/pocket-quartermaster/commit/c7c651a1571d84ff34520ce84610be4dc30758d1))
+
 ## [0.4.0](https://github.com/dylanclaywell/pocket-quartermaster/compare/pocket-quartermaster-v0.3.0...pocket-quartermaster-v0.4.0) (2026-06-09)
 
 
